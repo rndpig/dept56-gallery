@@ -1,0 +1,71 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+*.egg-info/
+dist-python/
+build/
+
+# Ingestion output files
+ingestion_output/
+ingestion_state*.json
+*.csv
+manifest_*.json
+verification_*.json
+summary_*.txt
+
+# Scraping debug files
+scraping_debug_*.html
+scraping_prototype_results.json
+scraping_analysis.json
+north_pole_collection.html
+product_page_*.html
+
+# SQL migration files (keep them but exclude dumps)
+# *.sql
+
+# Keep important config files
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.node.json
+!vite.config.ts
+
+# OS files
+Thumbs.db
