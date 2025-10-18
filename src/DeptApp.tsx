@@ -150,6 +150,8 @@ function useModal<T = any>() {
     hide: () => setOpen(false),
   } as const;
 }
+
+// Simple image modal for accessories
 function ImageModal({
   open,
   onClose,
@@ -180,6 +182,213 @@ function ImageModal({
           ) : (
             <div className="p-6 text-sm text-gray-500">No image</div>
           )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// Detailed house modal with metadata and accessories
+function HouseDetailModal({
+  open,
+  onClose,
+  house,
+  data,
+  collById,
+  tagById,
+  onAccessoryClick,
+  onUnlink,
+}: {
+  open: boolean;
+  onClose: () => void;
+  house: House | null;
+  data: Database | null;
+  collById: Record<string, Collection>;
+  tagById: Record<string, Tag>;
+  onAccessoryClick: (src: string, title: string) => void;
+  onUnlink: (linkId: string) => void;
+}) {
+  const [selectedImage, setSelectedImage] = React.useState<{ url: string; name: string } | null>(null);
+
+  // Initialize selected image to house photo when modal opens
+  React.useEffect(() => {
+    if (open && house?.photo_url) {
+      setSelectedImage({ url: house.photo_url, name: house.name });
+    }
+  }, [open, house]);
+
+  if (!open || !house || !data) return null;
+
+  // Get unique accessories with photos only
+  const accessoryMap = new Map<string, { linkId: string; a: Accessory }>();
+  data.houseAccessoryLinks
+    .filter((l) => l.house_id === house.id)
+    .forEach((l) => {
+      const accessory = data.accessories.find((x) => x.id === l.accessory_id);
+      if (accessory && accessory.photo_url) {
+        if (!accessoryMap.has(accessory.id)) {
+          accessoryMap.set(accessory.id, { linkId: l.id, a: accessory });
+        }
+      }
+    });
+  const accessories = Array.from(accessoryMap.values());
+
+  const colls = data.houseCollections
+    .filter((x) => x.house_id === house.id)
+    .map((x) => collById[x.collection_id])
+    .filter(Boolean) as Collection[];
+  
+  const tags = data.houseTags
+    .filter((x) => x.house_id === house.id)
+    .map((x) => tagById[x.tag_id])
+    .filter(Boolean) as Tag[];
+
+  // Parse SKUs from notes
+  const skus = house.notes ? (() => {
+    const match = house.notes.match(/SKUs?:\s*([0-9.,\s]+)/i);
+    if (match) {
+      return match[1].split(',').map(s => s.trim()).filter(s => s);
+    }
+    return [];
+  })() : [];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onClick={onClose}
+    >
+      <div className="max-w-4xl w-full h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <Card className="overflow-hidden h-full flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50 flex-shrink-0">
+            <h2 className="text-xl font-semibold">{house.name}</h2>
+            <Button onClick={onClose}>Close</Button>
+          </div>
+
+          {/* Content: Image on left (75%), thumbnails/details on right (25%) */}
+          <div className="flex flex-col lg:flex-row flex-1 min-h-0">
+            {/* Left: Large Image Display */}
+            <div className="lg:w-3/4 bg-gray-100 flex flex-col min-h-0">
+              {/* Selected item name header */}
+              {selectedImage && (
+                <div className="bg-gray-200 px-4 py-2 border-b border-gray-300 flex-shrink-0">
+                  <h3 className="text-sm font-semibold text-gray-800">{selectedImage.name}</h3>
+                </div>
+              )}
+              {/* Image */}
+              <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+                {selectedImage?.url ? (
+                  <img 
+                    src={selectedImage.url} 
+                    alt={selectedImage.name} 
+                    className="max-w-full max-h-full object-contain"
+                  />
+                ) : (
+                  <div className="p-12 text-gray-400 text-center">No photo available</div>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Thumbnails and Metadata */}
+            <div className="lg:w-1/4 overflow-y-auto p-4 space-y-4 bg-gray-50">
+              {/* Thumbnails Section */}
+              <div>
+                {/* House Section */}
+                <div className="mb-3">
+                  <h3 className="text-xs font-semibold text-gray-700 mb-2 uppercase">House</h3>
+                  {house.photo_url && (
+                    <button
+                      onClick={() => setSelectedImage({ url: house.photo_url!, name: house.name })}
+                      className={`w-full border-2 rounded overflow-hidden hover:border-blue-500 transition-colors ${
+                        selectedImage?.url === house.photo_url ? 'border-blue-500' : 'border-gray-300'
+                      }`}
+                    >
+                      <img
+                        src={house.photo_url}
+                        alt={house.name}
+                        className="w-full h-20 object-contain bg-white"
+                      />
+                    </button>
+                  )}
+                </div>
+
+                {/* Accessories Section */}
+                {accessories.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-700 mb-2 uppercase">Accessories ({accessories.length})</h3>
+                    <div className="space-y-2">
+                      {accessories.map(({ linkId, a }) => (
+                        <button
+                          key={linkId}
+                          onClick={() => setSelectedImage({ url: a.photo_url!, name: a.name })}
+                          className={`w-full border-2 rounded overflow-hidden hover:border-blue-500 transition-colors ${
+                            selectedImage?.url === a.photo_url ? 'border-blue-500' : 'border-gray-300'
+                          }`}
+                        >
+                          <img
+                            src={a.photo_url!}
+                            alt={a.name}
+                            className="w-full h-20 object-contain bg-white"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Metadata */}
+              <div>
+                <h3 className="text-xs font-semibold text-gray-700 mb-2">Details</h3>
+                <div className="space-y-1 text-xs">
+                  {house.year && (
+                    <div>
+                      <span className="font-medium text-gray-600">Year:</span>
+                      <span className="ml-1">{house.year}</span>
+                    </div>
+                  )}
+                  {house.purchased_year && (
+                    <div>
+                      <span className="font-medium text-gray-600">Purchased:</span>
+                      <span className="ml-1">{house.purchased_year}</span>
+                    </div>
+                  )}
+                  {skus.length > 0 && (
+                    <div>
+                      <span className="font-medium text-gray-600">SKU(s):</span>
+                      <span className="ml-1">{skus.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Collections */}
+              {colls.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-700 mb-2">Collections</h3>
+                  <div className="flex flex-wrap gap-1">
+                    {colls.map((c) => (
+                      <Pill key={c.id}>{c.name}</Pill>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tags */}
+              {tags.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-700 mb-2">Tags</h3>
+                  <div className="flex flex-wrap gap-1">
+                    {tags.map((t) => (
+                      <span key={t.id} className="bg-gray-100 rounded-full px-2 py-0.5 text-xs text-gray-700">
+                        #{t.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </Card>
       </div>
     </div>
@@ -546,8 +755,9 @@ export default function App() {
   const [linkHouseId, setLinkHouseId] = useState<string>("");
   const [linkAccId, setLinkAccId] = useState<string>("");
 
-  // Image modal
-  const modal = useModal<{ title?: string; src?: string }>();
+  // Modals
+  const imageModal = useModal<{ title?: string; src?: string }>();
+  const houseModal = useModal<House>();
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Derived: maps for quick lookup (MUST be before early returns!)
@@ -827,17 +1037,17 @@ export default function App() {
       .filter(Boolean) as Tag[];
     
     return (
-      <Card className="overflow-hidden">
-        {h.photo_url ? (
-          <button
-            className="block w-full"
-            onClick={() => modal.show({ src: h.photo_url, title: h.name })}
-          >
+      <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
+        <div
+          className="block w-full"
+          onClick={() => houseModal.show(h)}
+        >
+          {h.photo_url ? (
             <img src={h.photo_url} alt={h.name} className="w-full h-48 object-cover" />
-          </button>
-        ) : (
-          <div className="w-full h-48 grid place-items-center text-gray-400 text-sm">No photo</div>
-        )}
+          ) : (
+            <div className="w-full h-48 grid place-items-center text-gray-400 text-sm">No photo</div>
+          )}
+        </div>
         <div className="p-3 space-y-2">
           <div className="font-semibold leading-tight">{h.name}</div>
           <div className="flex gap-2 flex-wrap">
@@ -856,43 +1066,13 @@ export default function App() {
               ))}
             </div>
           )}
-          <div className="pt-2">
-            <div className="text-xs font-semibold text-gray-700 mb-1">Accessories</div>
-            {accessories.length === 0 ? (
-              <div className="text-xs text-gray-500">None linked yet</div>
-            ) : (
-              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-                {accessories.map(({ linkId, a }) => (
-                  <div key={linkId} className="relative group">
-                    <button
-                      className="block w-full"
-                      onClick={() => modal.show({ src: a.photo_url, title: a.name })}
-                      title={a.name}
-                    >
-                      {a.photo_url ? (
-                        <img
-                          src={a.photo_url}
-                          alt={a.name}
-                          className="h-16 w-full object-contain rounded-lg border bg-white"
-                        />
-                      ) : (
-                        <div className="h-16 w-full grid place-items-center text-[10px] text-gray-400 border rounded-lg">
-                          No photo
-                        </div>
-                      )}
-                    </button>
-                    <button
-                      className="absolute top-1 right-1 hidden group-hover:block bg-white/90 border rounded-full px-1 text-[10px]"
-                      onClick={() => unlink(linkId)}
-                      title="Unlink"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+          {accessories.length > 0 && (
+            <div className="pt-2">
+              <div className="text-xs text-gray-500">
+                {accessories.length} {accessories.length === 1 ? 'accessory' : 'accessories'}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </Card>
     );
@@ -920,7 +1100,7 @@ export default function App() {
         {a.photo_url ? (
           <button
             className="block w-full"
-            onClick={() => modal.show({ src: a.photo_url, title: a.name })}
+            onClick={() => imageModal.show({ src: a.photo_url, title: a.name })}
           >
             <img src={a.photo_url} alt={a.name} className="w-full h-48 object-cover" />
           </button>
@@ -1225,7 +1405,24 @@ export default function App() {
       <footer className="py-6 text-center text-xs text-gray-500">
         © {new Date().getFullYear()} Dept56 Browser — Cloud Edition
       </footer>
-      <ImageModal open={modal.open} onClose={modal.hide} title={modal.data?.title} src={modal.data?.src} />
+      
+      {/* Modals */}
+      <ImageModal 
+        open={imageModal.open} 
+        onClose={imageModal.hide} 
+        title={imageModal.data?.title} 
+        src={imageModal.data?.src} 
+      />
+      <HouseDetailModal
+        open={houseModal.open}
+        onClose={houseModal.hide}
+        house={houseModal.data}
+        data={data}
+        collById={collById}
+        tagById={tagById}
+        onAccessoryClick={(src, title) => imageModal.show({ src, title })}
+        onUnlink={unlink}
+      />
     </div>
   );
 }
