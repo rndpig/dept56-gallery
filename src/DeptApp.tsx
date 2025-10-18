@@ -164,17 +164,19 @@ function ImageModal({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 overflow-y-auto"
       onClick={onClose}
     >
-      <div className="max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
+      <div className="max-w-4xl w-full my-8" onClick={(e) => e.stopPropagation()}>
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b">
             <div className="font-medium truncate pr-4">{title || "Photo"}</div>
             <Button onClick={onClose}>Close</Button>
           </div>
           {src ? (
-            <img src={src} alt={title} className="w-full h-auto" />
+            <div className="max-h-[calc(100vh-200px)] overflow-auto">
+              <img src={src} alt={title} className="w-full h-auto" />
+            </div>
           ) : (
             <div className="p-6 text-sm text-gray-500">No image</div>
           )}
@@ -799,13 +801,22 @@ export default function App() {
 
   // UI cards
   function HouseCard({ h }: { h: House }) {
-    const accessories = data.houseAccessoryLinks
+    // Get unique accessories with photos only
+    const accessoryMap = new Map<string, { linkId: string; a: Accessory }>();
+    data.houseAccessoryLinks
       .filter((l) => l.house_id === h.id)
-      .map((l) => ({
-        linkId: l.id,
-        a: data.accessories.find((x) => x.id === l.accessory_id)!,
-      }))
-      .filter((x) => x.a);
+      .forEach((l) => {
+        const accessory = data.accessories.find((x) => x.id === l.accessory_id);
+        // Only include if accessory exists and has a photo
+        if (accessory && accessory.photo_url) {
+          // Use accessory ID as key to deduplicate
+          if (!accessoryMap.has(accessory.id)) {
+            accessoryMap.set(accessory.id, { linkId: l.id, a: accessory });
+          }
+        }
+      });
+    const accessories = Array.from(accessoryMap.values());
+    
     const colls = data.houseCollections
       .filter((x) => x.house_id === h.id)
       .map((x) => collById[x.collection_id])
@@ -862,7 +873,7 @@ export default function App() {
                         <img
                           src={a.photo_url}
                           alt={a.name}
-                          className="h-16 w-full object-cover rounded-lg border"
+                          className="h-16 w-full object-contain rounded-lg border bg-white"
                         />
                       ) : (
                         <div className="h-16 w-full grid place-items-center text-[10px] text-gray-400 border rounded-lg">
