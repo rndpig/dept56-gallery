@@ -9,10 +9,13 @@ import pathlib
 import json
 import re
 import time
+import multiprocessing as mp
+from functools import lru_cache
 from datetime import datetime
-from typing import List, Dict, Optional, Tuple, Set
+from typing import List, Dict, Optional, Tuple, Set, FrozenSet
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Load environment variables
 load_dotenv()
@@ -20,19 +23,56 @@ load_dotenv()
 # Initialize Supabase 
 supabase = create_client(
     os.getenv("VITE_SUPABASE_URL"),
-    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-)
+    os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
 
 # Configuration 
 SOURCE_DIR = r"\\DilgerNAS\Public\Media\Day NP Files"
 OUTPUT_DIR = r"C:\Users\rndpi\Documents\Coding Projects\Dept 56 gallery app\ingestion_output"
 STATE_FILE = os.path.join(OUTPUT_DIR, "ingestion_state.json")
+MAX_WORKERS = max(4, mp.cpu_count() - 1)  # Leave one CPU free
 
-# Cache for database records
+# Pre-compile regex patterns
+YEAR_PATTERNS = [
+    re.compile(r'\s*(20\d{2})\s*'),  # 2023, 2015 etc
+    re.compile(r'\s*\(?(19\d{2})\)?'),  # 1990, (1995) etc
+    re.compile(r'\s*NORTH POLE\s+(19\d{2})'),  # NORTH POLE 1991
+    re.compile(r'\s+\'?(\d{2})\s*$'),  # '96, 99 etc - convert to 19xx
+    re.compile(r'\s+(?:19|20)(\d{2})\s*$')  # Space followed by year at end
+]
+
+CLEANUP_PATTERNS = [
+    re.compile(r'\s*\([^)]+\)'),  # Remove parentheticals
+    re.compile(r'\s+set of \d+.*$'),  # Remove "set of X" suffixes
+    re.compile(r'(?i)No ACC [Bb]ox.*$'),  # Case-insensitive "No ACC box"
+    re.compile(r'\s+included in set.*$'),
+    re.compile(r'\s+SANTA.*$'),
+    re.compile(r'\s+CLAUS.*$'),
+    re.compile(r'Bottom of Form.*$'),
+    re.compile(r'\s+[Tt]he$'),  # Remove "the" from end
+    re.compile(r'^[Tt]he\s+')  # Remove "the" from start
+]
+
+REINDEER_NAME_PATTERN = re.compile(r'(?:.*?Reindeer\s*Stables[,\s]+)?([A-Za-z\s&]+)(?:\s+(?:19|20)\d{2})?$')
+
+# Cache for database records and name variations
 DB_CACHE = {
-    "houses": None,
-    "accessories": None
+    "houses": {},
+    "accessories": {},
+    "name_variations": {}  # Cache for name variations
 }
+
+# Commonly used sets
+REINDEER_NAMES = frozenset([
+    "dasher", "dancer", "prancer", "vixen",
+    "comet", "cupid", "donner", "donder", "blitzen", "rudolph"
+])
+
+PRESERVED_PHRASES = frozenset([
+    "north pole", "santa's workshop", "mrs. claus", "fisher price",
+    "reindeer stables", "m&m's", "m&m", "set of", "ready for",
+    "santa's little", "home for", "jack in the box", "santa & mrs",
+    "coca cola", "coca-cola", "perfect snow", "christmas eve"
+])
 
 # Special handling for reindeer pairs
 REINDEER_PAIRS = {
@@ -91,48 +131,36 @@ def load_db_cache(supabase: Client) -> None:
     try:
         print("Loading database records into cache...")
         
-        # Get all records
-        houses = supabase.table("houses").select("*").execute().data
-        accessories = supabase.table("accessories").select("*").execute().data
-        
-        # Create name variations for each record
-        DB_CACHE["houses"] = {}
-        DB_CACHE["accessories"] = {}
-        
-        # Process houses
-        for record in houses:
-            name = record["name"]
-            variations = get_name_variations(name)
-            for var in variations:
-                var_lower = var.lower()
-                if var_lower not in DB_CACHE["houses"]:
-                    DB_CACHE["houses"][var_lower] = record
-        
-        # Process accessories with special handling
-        for record in accessories:
-            name = record["name"]
+        # Get all records in parallel
+        with ThreadPoolExecutor() as executor:
+            houses_future = executor.submit(lambda: supabase.table("houses").select("*").execute().data)
+            accessories_future = executor.submit(lambda: supabase.table("accessories").select("*").execute().data)
             
-            # Special case: Reindeer Stables
-            if "Reindeer" in name and "&" in name:
-                parts = name.split("&")
-                for part in parts:
-                    clean_part = part.strip()
-                    if "Reindeer" not in clean_part:
-                        variations = get_name_variations(f"Reindeer Stables {clean_part}")
-                        for var in variations:
-                            var_lower = var.lower()
-                            if var_lower not in DB_CACHE["accessories"]:
-                                DB_CACHE["accessories"][var_lower] = record
+            houses = houses_future.result()
+            accessories = accessories_future.result()
+        
+        # Process houses and accessories in parallel
+        def cache_records(records: List[Dict], table: str) -> Dict:
+            cache = {}
+            for record in records:
+                name = record["name"]
+                variations = get_name_variations(name)
+                for var in variations:
+                    var_lower = var.lower()
+                    if var_lower not in cache:
+                        cache[var_lower] = record
+            return cache
+        
+        with ThreadPoolExecutor() as executor:
+            houses_cache_future = executor.submit(cache_records, houses, "houses")
+            accessories_cache_future = executor.submit(cache_records, accessories, "accessories")
             
-            # Generate standard variations
-            variations = get_name_variations(name)
-            for var in variations:
-                var_lower = var.lower()
-                if var_lower not in DB_CACHE["accessories"]:
-                    DB_CACHE["accessories"][var_lower] = record
+            DB_CACHE["houses"] = houses_cache_future.result()
+            DB_CACHE["accessories"] = accessories_cache_future.result()
         
         print(f"Cached {len(houses)} houses and {len(accessories)} accessories")
         print(f"Generated {len(DB_CACHE['houses'])} house variations and {len(DB_CACHE['accessories'])} accessory variations")
+        
     except Exception as e:
         print(f"⚠️  Error loading database cache: {e}")
         DB_CACHE["houses"] = {}
@@ -174,56 +202,41 @@ def get_docx_files(directory: str) -> List[str]:
         print(f"❌ Error scanning directory {directory}: {e}")
     return docx_files
 
+@lru_cache(maxsize=1024)
 def normalize_name(name: str) -> str:
-    """Normalize a name for comparison by removing special characters and extra spaces."""
-    # Preserve ACC prefix if present
-    acc_prefix = ""
-    if name.upper().startswith("ACC "):
-        acc_prefix = "ACC "
+    """Normalize a name for comparison."""
+    # Quick check for common cases
+    if not name:
+        return ""
+        
+    # Handle ACC prefix
+    is_acc = name.upper().startswith("ACC ")
+    if is_acc:
         name = name[4:]
     
     # Replace common variations
-    name = name.replace("'s", "s").replace("&", "and")
+    name = name.lower().replace("'s", "s").replace("&", "and")
     
-    # Handle special characters while preserving meaningful ones
-    preserved = {
-        "'": "'",  # Smart quotes
-        "'": "'",  # Smart quotes
-        """: '"',  # Smart quotes
-        """: '"',  # Smart quotes
-        "–": "-",  # En dash
-        "—": "-",  # Em dash
-        "…": "...", # Ellipsis
-    }
-    
-    for old, new in preserved.items():
-        name = name.replace(old, new)
-    
-    # Remove special characters but keep spaces and hyphens in meaningful positions
+    # Remove special characters but keep spaces and meaningful hyphens
     cleaned = ""
-    for i, char in enumerate(name):
-        if char.isalnum() or char.isspace():
-            cleaned += char
-        elif char == '-':
-            # Keep hyphen if it's between letters (like "Ring-a-Ling")
+    for i, c in enumerate(name):
+        if c.isalnum() or c.isspace():
+            cleaned += c
+        elif c == '-':
+            # Keep hyphen if it's between letters
             if (i > 0 and i < len(name)-1 and 
-                (name[i-1].isalnum() or name[i-1].isspace()) and 
-                (name[i+1].isalnum() or name[i+1].isspace())):
-                cleaned += char
-        elif char == '&':
-            # Keep & if it's between words
-            if (i > 0 and i < len(name)-1 and 
-                (name[i-1].isspace() or name[i+1].isspace())):
-                cleaned += "and"
+                name[i-1:i].strip('-').isalnum() and 
+                name[i+1:i+2].strip('-').isalnum()):
+                cleaned += c
     
     # Normalize whitespace
     name = ' '.join(cleaned.split())
     
-    # Reapply ACC prefix if it was present
-    if acc_prefix:
-        name = acc_prefix + name
+    # Reapply ACC prefix if needed
+    if is_acc:
+        name = "acc " + name
         
-    return name.lower()
+    return name
 
 def normalize_filename(filename: str) -> str:
     """Normalize filename to sentence case and fix common spelling issues."""
@@ -550,7 +563,8 @@ def clean_name(filename: str) -> Tuple[str, Optional[int], bool, str]:
     
     return primary_name, year, is_accessory, alt_name
 
-def get_name_variations(name: str) -> Set[str]:
+@lru_cache(maxsize=1024)
+def get_name_variations(name: str) -> FrozenSet[str]:
     """Generate likely variations of a name for matching."""
     variations = {name}
     
@@ -686,7 +700,7 @@ def get_name_variations(name: str) -> Set[str]:
         variations.add(" ".join(parts))
         variations.add("-".join(parts))
     
-    return variations
+    return frozenset(v.strip() for v in variations if v.strip())
 
 def extract_images(docx_path: str) -> List[Tuple[bytes, str]]:
     """Extract images from .docx file."""
@@ -1121,75 +1135,31 @@ def process_document_photos(
     
     return result
 
-def process_batch(
-    docx_files: List[str],
-    start_idx: int,
-    batch_size: int,
-    total_files: int,
-    state: Dict,
-    max_retries: int = 3
-) -> List[Dict]:
-    """Process a batch of documents with retries."""
+def process_file_batch(batch: List[str], state: Dict) -> List[Dict]:
+    """Process a batch of files."""
     results = []
-    end_idx = min(start_idx + batch_size, total_files)
-    
-    for i in range(start_idx, end_idx):
-        docx_path = docx_files[i]
+    for docx_path in batch:
         file_key = os.path.basename(docx_path)
         
-        # Skip if already successfully processed
+        # Skip if already processed
         if file_key in state["processed_files"] and state["processed_files"][file_key].get("images_uploaded", 0) > 0:
-            print(f"\n[{i+1}/{total_files}] Skipping already processed: {file_key}")
             cached_result = state["processed_files"][file_key].copy()
             cached_result["success"] = True
             cached_result["file"] = file_key
             results.append(cached_result)
             continue
-            
-        print(f"\n[{i+1}/{total_files}]", end=" ")
         
-        # Try processing with retries
-        for attempt in range(max_retries):
-            try:
-                result = process_document_photos(docx_path, supabase, state)
-                
-                if result["success"] or "No images found" in str(result.get("error", "")):
-                    results.append(result)
-                    break
-                    
-                if attempt < max_retries - 1:
-                    print(f"   ⚠️ Retry {attempt + 1}/{max_retries}...")
-                    time.sleep(2 ** attempt)  # Exponential backoff
-                else:
-                    print(f"   ❌ Failed after {max_retries} attempts")
-                    results.append(result)
-                    
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    print(f"   ⚠️ Error, retrying ({attempt + 1}/{max_retries}): {e}")
-                    time.sleep(2 ** attempt)
-                else:
-                    print(f"   ❌ Fatal error: {e}")
-                    results.append({
-                        "file": file_key,
-                        "path": docx_path,
-                        "success": False,
-                        "error": str(e)
-                    })
-        
-        # Update state after each successful document
-        if results[-1]["success"]:
-            state["processed_files"][file_key] = {
+        try:
+            result = process_document_photos(docx_path, supabase, state)
+            results.append(result)
+        except Exception as e:
+            results.append({
+                "file": file_key,
                 "path": docx_path,
-                "images_uploaded": results[-1].get("images_uploaded", 0),
-                "house_id": results[-1].get("house_id"),
-                "house_name": results[-1].get("house_name"),
-                "accessory_ids": results[-1].get("accessory_ids", []),
-                "accessory_names": results[-1].get("accessory_names", []),
-                "last_processed": datetime.now().isoformat()
-            }
-            save_state(state)  # Save state after each successful file
-            
+                "success": False,
+                "error": str(e)
+            })
+    
     return results
 
 def main():
@@ -1197,62 +1167,76 @@ def main():
     print("=" * 60)
     print("Department 56 Photo Re-upload Script")
     print("=" * 60)
-    print(f"\nSource: {SOURCE_DIR}")
-    print(f"Output: {OUTPUT_DIR}")
     
     # Ensure output directory exists
-    ensure_dir(OUTPUT_DIR)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     
-    # Load processing state
+    # Load state and cache
     state = load_state()
-    
-    # Load database cache
     load_db_cache(supabase)
     
-    # Find all .docx files
-    print("\nScanning for .docx files...")
+    # Get files and sort
     docx_files = get_docx_files(SOURCE_DIR)
+    if not docx_files:
+        print("❌ No .docx files found")
+        return
+        
     total_files = len(docx_files)
     print(f"Found {total_files} document(s)")
     
-    if not docx_files:
-        print("❌ No .docx files found. Check the source directory.")
-        return
-        
-    # Sort files to process accessories after their main pieces
+    # Sort accessories after main pieces
     docx_files.sort(key=lambda x: os.path.basename(x).lower().startswith("acc "))
     
-    # Process in batches
-    BATCH_SIZE = 10
-    results = []
+    # Process in parallel batches
+    BATCH_SIZE = max(10, total_files // (MAX_WORKERS * 2))
+    batches = [docx_files[i:i + BATCH_SIZE] for i in range(0, len(docx_files), BATCH_SIZE)]
     
+    results = []
     try:
-        for start_idx in range(0, total_files, BATCH_SIZE):
-            print(f"\nProcessing batch {(start_idx // BATCH_SIZE) + 1}...")
-            batch_results = process_batch(docx_files, start_idx, BATCH_SIZE, total_files, state)
-            results.extend(batch_results)
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            future_to_batch = {
+                executor.submit(process_file_batch, batch, state): batch 
+                for batch in batches
+            }
             
-            # Show interim summary for batch
-            batch_successful = sum(1 for r in batch_results if r["success"])
-            batch_images = sum(r.get("images_uploaded", 0) for r in batch_results)
-            print(f"\nBatch summary:")
-            print(f"Processed: {len(batch_results)}")
-            print(f"Successful: {batch_successful}")
-            print(f"Images uploaded: {batch_images}")
+            for future in as_completed(future_to_batch):
+                batch = future_to_batch[future]
+                try:
+                    batch_results = future.result()
+                    results.extend(batch_results)
+                    
+                    # Show progress
+                    successful = sum(1 for r in batch_results if r["success"])
+                    images = sum(r.get("images_uploaded", 0) for r in batch_results)
+                    print(f"\nBatch complete:")
+                    print(f"Processed: {len(batch_results)}")
+                    print(f"Successful: {successful}")
+                    print(f"Images: {images}")
+                    
+                    # Update state for successful results
+                    for r in batch_results:
+                        if r["success"]:
+                            state["processed_files"][r["file"]] = {
+                                "path": r["path"],
+                                "images_uploaded": r.get("images_uploaded", 0),
+                                "house_id": r.get("house_id"),
+                                "house_name": r.get("house_name"),
+                                "accessory_ids": r.get("accessory_ids", []),
+                                "accessory_names": r.get("accessory_names", []),
+                                "last_processed": datetime.now().isoformat()
+                            }
+                    
+                    # Save state periodically
+                    save_state(state)
+                    
+                except Exception as e:
+                    print(f"❌ Batch error: {e}")
     
     except KeyboardInterrupt:
-        print("\n\n⚠️  Processing interrupted by user")
-    except Exception as e:
-        print(f"\n\n❌ Fatal error: {e}")
+        print("\n⚠️  Processing interrupted")
     finally:
-        # Save final state
+        # Save final state and generate summary
         save_state(state)
-        print(f"\nState saved: {STATE_FILE}")
-        
-        # Generate final summary report
-        print("\n" + "=" * 60)
-        print("FINAL SUMMARY")
-        print("=" * 60)
         
         successful = sum(1 for r in results if r["success"])
         failed = len(results) - successful
@@ -1260,6 +1244,9 @@ def main():
         updated_houses = sum(1 for r in results if r.get("house_id"))
         updated_accessories = sum(len(r.get("accessory_ids", [])) for r in results)
         
+        print("\n" + "=" * 60)
+        print("FINAL SUMMARY")
+        print("=" * 60)
         print(f"Total processed: {len(results)}/{total_files}")
         print(f"Successful: {successful}")
         print(f"Failed: {failed}")
