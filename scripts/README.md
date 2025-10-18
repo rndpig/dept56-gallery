@@ -124,6 +124,28 @@ python execute_cleanup.py cleanup_plan_YYYYMMDD_HHMMSS.json
 
 **⚠️ WARNING:** This permanently deletes records. Review the cleanup plan carefully before executing.
 
+### link_accessories_to_houses.py
+
+Creates house-accessory links based on the ingestion manifest. Links accessories to the houses they originated with in the same Word document.
+
+**Usage:**
+```powershell
+$env:SUPABASE_URL = "your-project-url"
+$env:SUPABASE_SERVICE_ROLE_KEY = "your-service-role-key"
+
+python link_accessories_to_houses.py
+```
+
+**Features:**
+- Reads latest ingestion manifest automatically
+- Validates all IDs exist before creating links
+- Skips already-existing links
+- Batch processing (100 links at a time)
+- Generates detailed JSON report
+- Confirmation prompt before proceeding
+
+**Output:** Creates `linking_report_YYYYMMDD_HHMMSS.json` with statistics and invalid mappings.
+
 ---
 
 ## 🔐 Environment Variables
