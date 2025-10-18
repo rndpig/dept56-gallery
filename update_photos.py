@@ -208,29 +208,62 @@ def normalize_name(name: str) -> str:
     # Quick check for common cases
     if not name:
         return ""
-        
+    
+    # Add spaces between camelCase or concatenated words first
+    name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
+    name = re.sub(r'([a-zA-Z])(\d)', r'\1 \2', name)
+    name = re.sub(r'(\d)([a-zA-Z])', r'\1 \2', name)
+    name = re.sub(r'([a-zA-Z]+)(?=[A-Z][a-z])', r'\1 ', name)
+    
     # Handle ACC prefix
-    is_acc = name.upper().startswith("ACC ")
+    is_acc = bool(re.match(r'(?i)acc\s+', name))
     if is_acc:
-        name = name[4:]
+        name = re.sub(r'(?i)acc\s+', '', name)
     
-    # Replace common variations
-    name = name.lower().replace("'s", "s").replace("&", "and")
+    # Replace common variations and fix common typos
+    replacements = {
+        "'s": "s",
+        "&": "and",
+        "santtas": "santas",
+        "sial": "sisal",
+        "arborist": "arborist",
+        "touchsantas": "touch santas",
+        "readynorthern": "ready northern",
+        "movinday": "moving day",
+        "goodthis": "good this"
+    }
     
-    # Remove special characters but keep spaces and meaningful hyphens
+    name = name.lower()
+    for old, new in replacements.items():
+        name = name.replace(old, new)
+    
+    # Remove special characters but keep spaces and meaningful hyphens/apostrophes
     cleaned = ""
     for i, c in enumerate(name):
         if c.isalnum() or c.isspace():
             cleaned += c
-        elif c == '-':
-            # Keep hyphen if it's between letters
-            if (i > 0 and i < len(name)-1 and 
-                name[i-1:i].strip('-').isalnum() and 
-                name[i+1:i+2].strip('-').isalnum()):
+        elif c in ['-', "'"] and i > 0 and i < len(name)-1:
+            # Keep if it's between letters
+            if (name[i-1].isalnum() and name[i+1].isalnum()):
                 cleaned += c
     
     # Normalize whitespace
     name = ' '.join(cleaned.split())
+    
+    # Handle very short names specially
+    if len(name.split()) <= 2:
+        # Try to expand common abbreviations
+        abbrev_map = {
+            "st ": "saint ",
+            "mfg": "manufacturing",
+            "corp": "corporation",
+            "co ": "company ",
+            "inc": "incorporated",
+            "acc": "accessory"
+        }
+        for abbrev, full in abbrev_map.items():
+            if name.startswith(abbrev):
+                name = full + name[len(abbrev):]
     
     # Reapply ACC prefix if needed
     if is_acc:
@@ -374,6 +407,15 @@ def clean_name(filename: str) -> Tuple[str, Optional[int], bool, str]:
     acc_patterns = ["acc ", "Acc ", "ACC "]
     is_accessory = any(filename.startswith(prefix) for prefix in acc_patterns)
     name = filename[4:] if is_accessory else filename
+    
+    # Add spaces between camelCase or concatenated words
+    name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
+    name = re.sub(r'([a-zA-Z])(\d)', r'\1 \2', name)
+    name = re.sub(r'(\d)([a-zA-Z])', r'\1 \2', name)
+    
+    # Handle special concatenated cases
+    name = re.sub(r'([a-zA-Z]+)(?=[A-Z][a-z])', r'\1 ', name)  # Split before camelCase
+    name = ' '.join(name.split())
     
     # Fix common repeating patterns
     repeating_patterns = [
@@ -563,13 +605,26 @@ def clean_name(filename: str) -> Tuple[str, Optional[int], bool, str]:
     
     return primary_name, year, is_accessory, alt_name
 
-@lru_cache(maxsize=1024)
+@lru_cache(maxsize=2048)  # Increased cache size
 def get_name_variations(name: str) -> FrozenSet[str]:
     """Generate likely variations of a name for matching."""
     variations = {name}
     
     # Add normalized version
     variations.add(normalize_name(name))
+    
+    # Handle very short names specially
+    if len(name.split()) <= 2:
+        variations.add(name.replace("ACC ", "Accessory "))  # Expand ACC prefix
+        for word in name.split():
+            # Add variations for single-word items
+            variations.add(word)
+            variations.add(f"ACC {word}")
+            variations.add(f"Accessory {word}")
+            if len(word) > 3:  # Only for longer words to avoid too many false matches
+                variations.add(f"{word} Set")
+                variations.add(f"{word} Collection")
+                variations.add(f"{word} Piece")
     
     # Handle ACC prefix variations
     if name.lower().startswith("acc "):
@@ -578,10 +633,28 @@ def get_name_variations(name: str) -> FrozenSet[str]:
         variations.add("ACC " + base_name)
         variations.add("Acc " + base_name)
         variations.add("acc " + base_name)
+        variations.add("Accessory " + base_name)
+        
+        # Add variations without spaces between words
+        no_spaces = base_name.replace(" ", "")
+        variations.add(no_spaces)
+        variations.add("ACC" + no_spaces)
+        
+        # Handle hyphenated versions
+        if " " in base_name:
+            variations.add(base_name.replace(" ", "-"))
+            variations.add("ACC " + base_name.replace(" ", "-"))
     else:
         # Only add ACC variants if it might be an accessory
-        if "accessory" in name.lower() or any(word in name.lower() for word in ["set", "piece", "figure", "ornament"]):
+        if any(word in name.lower() for word in [
+            "accessory", "set", "piece", "figure", "ornament", "helper", 
+            "accent", "decoration", "figurine", "item", "detail"
+        ]):
             variations.add("ACC " + name)
+            variations.add("Accessory " + name)
+            # Add no-space variants
+            variations.add("ACC" + name.replace(" ", ""))
+            variations.add(name.replace(" ", ""))
     
     # Handle common accessory descriptors
     descriptors = ["set", "set of", "set of 2", "set of 3", "three accessories",
@@ -769,18 +842,51 @@ def find_db_record_by_name(
 ) -> Optional[Dict]:
     """Find a database record using flexible name matching strategies."""
     try:
-        # Get name variations
+        # First, clean up name by adding spaces between concatenated words
+        name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
+        name = re.sub(r'([a-zA-Z])(\d)', r'\1 \2', name)
+        name = re.sub(r'(\d)([a-zA-Z])', r'\1 \2', name)
+        name = re.sub(r'([a-zA-Z]+)(?=[A-Z][a-z])', r'\1 ', name)
+        name = ' '.join(name.split())
+        
+        # Handle very short names specially
+        if len(name.split()) <= 2:
+            name = name.replace("ACC ", "Accessory ")  # Expand ACC prefix
+            
+            # Expand common abbreviations
+            abbrev_map = {
+                "St.": "Saint",
+                "St ": "Saint ",
+                "Mfg": "Manufacturing",
+                "No.": "Number",
+                "Dept": "Department",
+                "Corp": "Corporation",
+                "Co.": "Company",
+                "Inc": "Incorporated"
+            }
+            for abbrev, full in abbrev_map.items():
+                name = name.replace(abbrev, full)
+        
+        # Get name variations with enhanced cleaning
         variations = get_name_variations(name)
         
         # Try exact matches first using cache
         cache = DB_CACHE[table]
         
-        # Try direct matches first
+        # Try direct matches first with more flexible comparison
         for var in variations:
             var_lower = var.lower()
             if var_lower in cache:
                 print(f"   ✓ Found exact match: {cache[var_lower]['name']}")
                 return cache[var_lower]
+            
+            # Try with common word separators removed
+            var_no_seps = var_lower.replace(" ", "").replace("-", "").replace("_", "")
+            for cache_name, record in cache.items():
+                cache_no_seps = cache_name.replace(" ", "").replace("-", "").replace("_", "")
+                if var_no_seps == cache_no_seps:
+                    print(f"   ✓ Found normalized match: {record['name']}")
+                    return record
                 
         # Try to handle special formatting cases
         cleaned_name = name.lower()
