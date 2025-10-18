@@ -103,27 +103,31 @@ Your app will be available at http://localhost:3000
 
 ```
 dept-56-gallery-app/
-├── src/
+├── src/                         # React application source code
 │   ├── components/
-│   │   └── Auth.tsx              # Authentication component
+│   │   └── Auth.tsx            # Authentication component
 │   ├── lib/
-│   │   ├── supabase.ts          # Supabase client initialization
-│   │   └── database.ts          # Database service layer (CRUD operations)
+│   │   ├── supabase.ts         # Supabase client initialization
+│   │   └── database.ts         # Database service layer (CRUD operations)
 │   ├── types/
-│   │   └── database.ts          # TypeScript type definitions
-│   ├── App.tsx                  # Main app with auth wrapper
-│   ├── main.tsx                 # React entry point
-│   ├── index.css                # Global styles
-│   └── vite-env.d.ts            # Vite type declarations
-├── dept_56_app.jsx              # Original app component (to be updated)
-├── supabase-schema.sql          # Database migration script
-├── index.html                   # HTML entry point
-├── vite.config.ts               # Vite configuration
-├── tsconfig.json                # TypeScript configuration
-├── tailwind.config.js           # Tailwind CSS configuration
-├── postcss.config.js            # PostCSS configuration
-├── package.json                 # Dependencies and scripts
-└── .env                         # Environment variables (create from .env.example)
+│   │   └── database.ts         # TypeScript type definitions
+│   ├── App.tsx                 # Main app with auth wrapper
+│   ├── DeptApp.tsx             # Main gallery component
+│   ├── main.tsx                # React entry point
+│   └── index.css               # Global styles
+├── scripts/                     # Utility scripts (see scripts/README.md)
+│   ├── data-ingestion/         # Import data from Word docs
+│   ├── scraping/               # Web scraping tools
+│   └── maintenance/            # Database maintenance utilities
+├── supabase-schema.sql         # Database migration script
+├── index.html                  # HTML entry point
+├── vite.config.ts              # Vite configuration
+├── tsconfig.json               # TypeScript configuration
+├── tailwind.config.js          # Tailwind CSS configuration
+├── postcss.config.js           # PostCSS configuration
+├── package.json                # Dependencies and scripts
+├── .env.example                # Environment variable template
+└── .env                        # Environment variables (create from .env.example)
 ```
 
 ## 🔧 Available Scripts
@@ -164,7 +168,17 @@ Images are stored in Supabase Storage in the `dept56-images` bucket:
 3. **Storage Policies** - Users can only access their own images
 4. **Environment Variables** - API keys stored securely in `.env` (never committed)
 
-## 🚢 Deployment
+## �️ Utility Scripts
+
+The `scripts/` directory contains utilities for data management and maintenance:
+
+- **data-ingestion/** - Import data from Word documents
+- **scraping/** - Web scraping tools for Department 56 product data
+- **maintenance/** - Database maintenance (duplicate detection, cleanup)
+
+For detailed usage instructions, see [scripts/README.md](scripts/README.md).
+
+## �🚢 Deployment
 
 ### Deploy to Vercel (Recommended)
 
