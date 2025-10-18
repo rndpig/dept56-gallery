@@ -80,7 +80,10 @@ PRESERVED_PHRASES = frozenset([
     "snow bank", "watertower", "water tower", "child in red suit", "56 claus lane",
     "home for the holidays", "gingerbread tree", "glass ornament", "plush bear",
     "teddy bear", "training center", "hobby horse", "kringle street",
-    "cocoa cart", "dq cone", "candy striper", "nana splits"
+    "cocoa cart", "dq cone", "candy striper", "nana splits",
+    "northwind knitters", "well deserved massage", "reindeer spa", "reindeer massage",
+    "bread baker", "early rising", "snowman water tower", "letters to santa",
+    "sorting station", "plush bear flag", "teddy bear training"
 ])
 
 # Special handling for reindeer pairs
@@ -233,6 +236,9 @@ def normalize_name(name: str) -> str:
     # Quick check for common cases
     if not name:
         return ""
+        
+    # Use normalized_filename() for special case handling first
+    name = normalize_filename(name)
     
     # Add spaces between camelCase or concatenated words first
     name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
@@ -298,6 +304,50 @@ def normalize_name(name: str) -> str:
 
 def normalize_filename(filename: str) -> str:
     """Normalize filename to sentence case and fix common spelling issues."""
+    # Handle special cases first
+    filename_lower = filename.lower()
+    if "drying the wool" in filename_lower and "running the loom" in filename_lower:
+        return "Northwind Knitters Loom Station"
+    elif "early rising" in filename_lower and ("bread baker" in filename_lower or "bread baking" in filename_lower):
+        return "Early Rising Bread Baker"
+    elif ("well deserved" in filename_lower or "reindeer spa" in filename_lower) and "massage" in filename_lower:
+        return "Reindeer Spa Massage"
+    elif "sorting santa" in filename_lower and "letter" in filename_lower:
+        return "Letters to Santa Sorting Station"
+    elif "child" in filename_lower and "red suit" in filename_lower and "dog" in filename_lower:
+        return "Child with Red Suit and Dog"
+    elif "water tower" in filename_lower or "watertower" in filename_lower:
+        if "snowman" in filename_lower:
+            return "Snowman Water Tower"
+        elif "santa" in filename_lower:
+            return "Santa Water Tower"
+    elif "plush bear" in filename_lower and ("flag" in filename_lower or "pole" in filename_lower):
+        return "Plush Bear Flagpole"
+    elif ("plush" in filename_lower or "teddy" in filename_lower) and "bear" in filename_lower and "train" in filename_lower:
+        return "Teddy Bear Training Center"
+    elif "look at him go" in filename_lower and "ride" in filename_lower:
+        return "Santa's Reindeer Rides"
+    # Handle special cases first
+    filename_lower = filename.lower()
+    if "drying the wool" in filename_lower and "running the loom" in filename_lower:
+        return "Northwind Knitters Loom Station"
+    elif "early rising" in filename_lower and ("bread baker" in filename_lower or "bread baking" in filename_lower):
+        return "Early Rising Bread Baker"
+    elif ("well deserved" in filename_lower or "reindeer spa" in filename_lower) and "massage" in filename_lower:
+        return "Reindeer Spa Massage"
+    elif "sorting santa" in filename_lower and "letter" in filename_lower:
+        return "Letters to Santa Sorting Station"
+    elif "child" in filename_lower and "red suit" in filename_lower and "dog" in filename_lower:
+        return "Child with Red Suit and Dog"
+    elif re.search(r'(?i)snowman\s*water\s*tower', filename):
+        return "Snowman Water Tower"
+    elif "plush bear" in filename_lower and ("flag" in filename_lower or "pole" in filename_lower):
+        return "Plush Bear Flagpole"
+    elif ("plush" in filename_lower or "teddy" in filename_lower) and "bear" in filename_lower and "train" in filename_lower:
+        return "Teddy Bear Training Center"
+    elif "look at him go" in filename_lower and "ride" in filename_lower:
+        return "Santa's Reindeer Rides"
+
     # Fix common spelling mistakes and standardize names
     spelling_fixes = {
             # Spelling corrections
@@ -425,7 +475,32 @@ def normalize_filename(filename: str) -> str:
 
 def clean_name(filename: str) -> Tuple[str, Optional[int], bool, str]:
     """Extract clean name, year, if accessory and alternative name from filename."""
-    # Normalize filename first
+    # Handle special cases first
+    filename_lower = filename.lower()
+    if "drying the wool" in filename_lower and "running the loom" in filename_lower:
+        return "Northwind Knitters Loom Station", None, False, ""
+    elif "early rising" in filename_lower and ("bread baker" in filename_lower or "bread baking" in filename_lower):
+        return "Early Rising Bread Baker", None, True, ""
+    elif ("well deserved" in filename_lower or "reindeer spa" in filename_lower) and "massage" in filename_lower:
+        return "Reindeer Spa Massage", None, True, ""
+    elif "sorting santa" in filename_lower and "letter" in filename_lower:
+        return "Letters to Santa Sorting Station", None, True, ""
+    elif "child" in filename_lower and "red suit" in filename_lower and "dog" in filename_lower:
+        return "Child with Red Suit and Dog", None, True, ""
+    elif "water tower" in filename_lower or "watertower" in filename_lower:
+        if "snowman" in filename_lower:
+            # Snowman Water Tower is a house, not an accessory
+            return "Snowman Water Tower", None, False, ""
+        elif "santa" in filename_lower:
+            return "Santa Water Tower", None, False, ""
+    elif "plush bear" in filename_lower and ("flag" in filename_lower or "pole" in filename_lower):
+        return "Plush Bear Flagpole", None, True, ""
+    elif ("plush" in filename_lower or "teddy" in filename_lower) and "bear" in filename_lower and "train" in filename_lower:
+        return "Teddy Bear Training Center", None, True, ""
+    elif "look at him go" in filename_lower and "ride" in filename_lower:
+        return "Santa's Reindeer Rides", None, True, ""
+    
+    # Normalize filename for regular cases
     filename = normalize_filename(filename)
     
     # Check for ACC prefix in any case variation
@@ -867,17 +942,19 @@ def categorize_name(name: str) -> List[str]:
     
     # Define category patterns with their associated keywords
     category_patterns = {
-        'house': ['house', 'cottage', 'home', 'cabin', 'shop', 'store', 'factory'],
-        'reindeer': ['reindeer', 'dasher', 'dancer', 'prancer', 'vixen', 'comet', 'cupid', 'donner', 'blitzen'],
-        'workshop': ['workshop', 'factory', 'manufacturing', 'production', 'studio'],
-        'sleigh': ['sleigh', 'sled', 'delivery', 'loading', 'flight', 'animated'],
-        'tree': ['tree', 'pine', 'fir', 'forest', 'wood', 'needle'],
+        'house': ['house', 'cottage', 'home', 'cabin', 'shop', 'store', 'factory', 'spa', 'salon', 'station'],
+        'reindeer': ['reindeer', 'dasher', 'dancer', 'prancer', 'vixen', 'comet', 'cupid', 'donner', 'blitzen', 'massage', 'spa'],
+        'workshop': ['workshop', 'factory', 'manufacturing', 'production', 'studio', 'knitters', 'weaving', 'wool', 'loom'],
+        'sleigh': ['sleigh', 'sled', 'delivery', 'loading', 'flight', 'animated', 'ride', 'rides'],
+        'tree': ['tree', 'pine', 'fir', 'forest', 'wood', 'needle', 'gingerbread'],
         'bell': ['bell', 'ring', 'chime', 'ding', 'carol', 'ring-a-ling'],
-        'santa': ['santa', 'claus', 'kringle', 'nick', 'christmas'],
-        'food': ['bakery', 'kitchen', 'cafe', 'diner', 'restaurant', 'candy', 'sweet', 'treat'],
-        'animal': ['pet', 'puppy', 'kitten', 'bird', 'animal', 'critter', 'stable', 'barn'],
-        'toy': ['toy', 'game', 'play', 'train', 'doll', 'teddy', 'bear', 'hobby'],
-        'decoration': ['ornament', 'light', 'decor', 'display', 'bulb', 'garland', 'wreath']
+        'santa': ['santa', 'claus', 'kringle', 'nick', 'christmas', 'letter', 'letters', 'sorting'],
+        'food': ['bakery', 'kitchen', 'cafe', 'diner', 'restaurant', 'candy', 'sweet', 'treat', 'bread', 'baker'],
+        'animal': ['pet', 'puppy', 'kitten', 'bird', 'animal', 'critter', 'stable', 'barn', 'dog'],
+        'toy': ['toy', 'game', 'play', 'train', 'doll', 'teddy', 'bear', 'hobby', 'flag', 'pole'],
+        'decoration': ['ornament', 'light', 'decor', 'display', 'bulb', 'garland', 'wreath', 'watertower', 'water tower'],
+        'character': ['elf', 'elves', 'snowman', 'child', 'kid', 'mrs', 'mrs.', 'mr', 'mr.'],
+        'activity': ['rising', 'early', 'baking', 'drying', 'running', 'sorting', 'well deserved', 'massage', 'working']
     }
     
     # Check each category
