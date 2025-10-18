@@ -37,7 +37,10 @@ YEAR_PATTERNS = [
     re.compile(r'\s*\(?(19\d{2})\)?'),  # 1990, (1995) etc
     re.compile(r'\s*NORTH POLE\s+(19\d{2})'),  # NORTH POLE 1991
     re.compile(r'\s+\'?(\d{2})\s*$'),  # '96, 99 etc - convert to 19xx
-    re.compile(r'\s+(?:19|20)(\d{2})\s*$')  # Space followed by year at end
+    re.compile(r'\s+(?:19|20)(\d{2})\s*$'),  # Space followed by year at end
+    re.compile(r'\s*\(\'(\d{2})\)'),  # ('96) format
+    re.compile(r'\s*\([Cc]irca\s+(?:19|20)?(\d{2})\)'),  # (circa 96) or (Circa 1996)
+    re.compile(r'\s*-\s*(?:19|20)?(\d{2})\b')  # -96 or -1996 format
 ]
 
 CLEANUP_PATTERNS = [
@@ -71,7 +74,13 @@ PRESERVED_PHRASES = frozenset([
     "north pole", "santa's workshop", "mrs. claus", "fisher price",
     "reindeer stables", "m&m's", "m&m", "set of", "ready for",
     "santa's little", "home for", "jack in the box", "santa & mrs",
-    "coca cola", "coca-cola", "perfect snow", "christmas eve"
+    "coca cola", "coca-cola", "perfect snow", "christmas eve",
+    "look at him go", "brite glass", "star brite", "ice cream parlor",
+    "bread baker", "early rising", "classic christmas", "santa water tower",
+    "snow bank", "watertower", "water tower", "child in red suit", "56 claus lane",
+    "home for the holidays", "gingerbread tree", "glass ornament", "plush bear",
+    "teddy bear", "training center", "hobby horse", "kringle street",
+    "cocoa cart", "dq cone", "candy striper", "nana splits"
 ])
 
 # Special handling for reindeer pairs
@@ -86,7 +95,11 @@ REINDEER_PAIRS = {
         "Reindeer Stables Blitzen & Donner",
         "Reindeer Stables, Blitzen & Donner",
         "Donner Blitzen Reindeer Stables",
-        "Blitzen Donner Reindeer Stables"
+        "Blitzen Donner Reindeer Stables",
+        "Donner and Blitzen Stables",
+        "Blitzen and Donner Stables",
+        "DonnerBlitzen",
+        "BlitzenDonner"
     ],
     frozenset(["dasher", "dancer"]): [
         "Dasher & Dancer",
@@ -98,7 +111,11 @@ REINDEER_PAIRS = {
         "Reindeer Stables Dancer & Dasher",
         "Reindeer Stables, Dancer & Dasher",
         "Dasher Dancer Reindeer Stables",
-        "Dancer Dasher Reindeer Stables"
+        "Dancer Dasher Reindeer Stables",
+        "Dasher and Dancer Stables",
+        "Dancer and Dasher Stables",
+        "DasherDancer",
+        "DancerDasher"
     ],
     frozenset(["prancer", "vixen"]): [
         "Prancer & Vixen",
@@ -110,7 +127,11 @@ REINDEER_PAIRS = {
         "Reindeer Stables Vixen & Prancer",
         "Reindeer Stables, Vixen & Prancer",
         "Prancer Vixen Reindeer Stables",
-        "Vixen Prancer Reindeer Stables"
+        "Vixen Prancer Reindeer Stables",
+        "Prancer and Vixen Stables",
+        "Vixen and Prancer Stables",
+        "PrancerVixen",
+        "VixenPrancer"
     ],
     frozenset(["comet", "cupid"]): [
         "Comet & Cupid",
@@ -122,7 +143,11 @@ REINDEER_PAIRS = {
         "Reindeer Stables Cupid & Comet",
         "Reindeer Stables, Cupid & Comet",
         "Comet Cupid Reindeer Stables",
-        "Cupid Comet Reindeer Stables"
+        "Cupid Comet Reindeer Stables",
+        "Comet and Cupid Stables",
+        "Cupid and Comet Stables",
+        "CometCupid",
+        "CupidComet"
     ]
 }
 
@@ -835,6 +860,33 @@ def upload_image_to_supabase(
     
     return None
 
+def categorize_name(name: str) -> List[str]:
+    """Categorize a name into product types for better scoring."""
+    categories = []
+    name_lower = name.lower()
+    
+    # Define category patterns with their associated keywords
+    category_patterns = {
+        'house': ['house', 'cottage', 'home', 'cabin', 'shop', 'store', 'factory'],
+        'reindeer': ['reindeer', 'dasher', 'dancer', 'prancer', 'vixen', 'comet', 'cupid', 'donner', 'blitzen'],
+        'workshop': ['workshop', 'factory', 'manufacturing', 'production', 'studio'],
+        'sleigh': ['sleigh', 'sled', 'delivery', 'loading', 'flight', 'animated'],
+        'tree': ['tree', 'pine', 'fir', 'forest', 'wood', 'needle'],
+        'bell': ['bell', 'ring', 'chime', 'ding', 'carol', 'ring-a-ling'],
+        'santa': ['santa', 'claus', 'kringle', 'nick', 'christmas'],
+        'food': ['bakery', 'kitchen', 'cafe', 'diner', 'restaurant', 'candy', 'sweet', 'treat'],
+        'animal': ['pet', 'puppy', 'kitten', 'bird', 'animal', 'critter', 'stable', 'barn'],
+        'toy': ['toy', 'game', 'play', 'train', 'doll', 'teddy', 'bear', 'hobby'],
+        'decoration': ['ornament', 'light', 'decor', 'display', 'bulb', 'garland', 'wreath']
+    }
+    
+    # Check each category
+    for category, keywords in category_patterns.items():
+        if any(keyword in name_lower for keyword in keywords):
+            categories.append(category)
+            
+    return categories
+
 def find_db_record_by_name(
     supabase: Client,
     name: str,
@@ -1043,9 +1095,19 @@ def find_db_record_by_name(
         meaningful_words = [w for w in words if len(w) > 2]  # Allow shorter meaningful words
         
         if meaningful_words:
+            # Get categories for the input name
+            input_categories = categorize_name(name)
+            
             # Search through cached records
             matches = []
             for record_name, record in cache.items():
+                # Get categories for the record name
+                record_categories = categorize_name(record_name)
+                
+                # Calculate category overlap score
+                category_overlap = set(input_categories) & set(record_categories)
+                category_score = len(category_overlap) * 3  # Give high weight to category matches
+                
                 # Try to find matches by groups of meaningful words
                 word_groups = []
                 for i in range(len(meaningful_words)):
@@ -1054,10 +1116,51 @@ def find_db_record_by_name(
                         if len(word_group) > 3:  # Only use groups with enough characters
                             word_groups.append(word_group)
                 
-                # Score matches based on both individual words and word groups
+                # Score matches based on individual words, word groups, and categories
                 word_score = sum(1 for word in meaningful_words if word in record_name)
                 group_score = sum(1 for group in word_groups if group in record_name)
-                total_score = word_score + (group_score * 2)  # Weight groups more heavily
+                
+                # Additional scoring for exact matches on important terms
+                exact_match_score = 0
+                for phrase in PRESERVED_PHRASES:
+                    if phrase in name.lower() and phrase in record_name.lower():
+                        exact_match_score += 3  # High weight for preserved phrase matches
+                        
+                # Score for matching year if present
+                year_score = 0
+                if record.get("year") and any(pat.search(name) for pat in YEAR_PATTERNS):
+                    try:
+                        record_year = int(record.get("year", 0))
+                        for pattern in YEAR_PATTERNS:
+                            match = pattern.search(name)
+                            if match:
+                                year_str = match.group(1)
+                                if len(year_str) == 2:
+                                    prefix = "19" if int(year_str) > 50 else "20"
+                                    doc_year = int(prefix + year_str)
+                                else:
+                                    doc_year = int(year_str)
+                                    
+                                if abs(record_year - doc_year) <= 2:
+                                    year_score = 3  # Strong boost for matching year
+                                elif abs(record_year - doc_year) <= 5:
+                                    year_score = 1  # Small boost for close year
+                                break
+                    except (ValueError, TypeError):
+                        pass
+                
+                # Combined score calculation
+                total_score = (
+                    word_score +           # Base word match score
+                    (group_score * 2) +    # Weighted phrase match score
+                    category_score +       # Category match score
+                    exact_match_score +    # Exact preserved phrase match score
+                    year_score            # Year match score
+                )
+                
+                # Boost score for perfect category matches
+                if input_categories and set(input_categories) == set(record_categories):
+                    total_score *= 1.5
                 
                 if total_score > len(meaningful_words) / 2:
                     matches.append((record, total_score))
