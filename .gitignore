@@ -44,6 +44,7 @@ build/
 
 # Ingestion output files
 ingestion_output/
+parsed_output/
 ingestion_state*.json
 *.csv
 manifest_*.json
