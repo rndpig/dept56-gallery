@@ -1,0 +1,59 @@
+{
+  "source_file": "ACC Follow the Leader 2016 Fisher Price Pull Toy Factory toot-toot Tester.docx",
+  "houses": [
+    {
+      "name": "Fisher Price Pull Toy Factory",
+      "item_type": "house",
+      "sku": null,
+      "description": null,
+      "notes": "Fisher Price Village Pull Toy Factory Lighted Building 4050962",
+      "price": null,
+      "year": 2016,
+      "retired_year": 2016,
+      "purchased_year": null,
+      "collection": null,
+      "series": null,
+      "linked_items": [
+        "Toot-toot Tester",
+        "Follow the Leader"
+      ],
+      "image_path": "parsed_output\\images\\Fisher_Price_Pull_Toy_Factory_house.jpg"
+    }
+  ],
+  "accessories": [
+    {
+      "name": "Toot-toot Tester",
+      "item_type": "accessory",
+      "sku": null,
+      "description": null,
+      "notes": "Toot-Toot Tester",
+      "price": null,
+      "year": null,
+      "retired_year": null,
+      "purchased_year": null,
+      "collection": null,
+      "series": null,
+      "linked_items": [
+        "Fisher Price Pull Toy Factory"
+      ],
+      "image_path": "parsed_output\\images\\Toot-toot_Tester_accessory.jpg"
+    },
+    {
+      "name": "Follow the Leader",
+      "item_type": "accessory",
+      "sku": null,
+      "description": null,
+      "notes": "Follow The Leader",
+      "price": null,
+      "year": null,
+      "retired_year": null,
+      "purchased_year": null,
+      "collection": null,
+      "series": null,
+      "linked_items": [
+        "Fisher Price Pull Toy Factory"
+      ],
+      "image_path": "parsed_output\\images\\Follow_the_Leader_accessory.jpg"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "source_file": "ACC Candy Cane Elves 1996 Candy Cane & Pepperment Shop set of 2.docx",
+  "houses": [
+    {
+      "name": "Candy Cane and Peppermint Shop",
+      "item_type": "house",
+      "sku": null,
+      "description": null,
+      "notes": null,
+      "price": null,
+      "year": 1996,
+      "retired_year": null,
+      "purchased_year": null,
+      "linked_items": [
+        "Candy Cane Elves Set of 2"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "name": "Candy Cane Elves Set of 2",
+      "item_type": "accessory",
+      "sku": null,
+      "description": null,
+      "notes": "Candy Cane Elves set of 2",
+      "price": null,
+      "year": null,
+      "retired_year": null,
+      "purchased_year": null,
+      "linked_items": [
+        "Candy Cane and Peppermint Shop"
+      ]
+    }
+  ]
+}

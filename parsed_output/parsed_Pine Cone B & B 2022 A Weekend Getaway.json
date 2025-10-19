@@ -1,0 +1,39 @@
+{
+  "source_file": "Pine Cone B & B 2022 A Weekend Getaway.docx",
+  "houses": [
+    {
+      "name": "Pine Cone B & B",
+      "item_type": "house",
+      "sku": "6009767",
+      "description": "Tucked away in a quiet woods is the \"Pine Cone B & B\", the perfect place for the elves to get away and relax after a long season of toy making.",
+      "notes": "Tucked away in a quiet woods is the \"Pine Cone B & B\", the perfect place for the elves to get away and relax after a long season of toy making.. A Weekend Getaway. We're not sure what she has packed, but Mrs. Elf seems prepared for any occasion while staying at the \"Pine Cone B & B\".",
+      "price": 185.0,
+      "year": 2022,
+      "retired_year": null,
+      "purchased_year": null,
+      "collection": null,
+      "series": null,
+      "linked_items": [
+        "A Weekend Getaway"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "name": "A Weekend Getaway",
+      "item_type": "accessory",
+      "sku": null,
+      "description": "elf carrying trunk for Mrs. Elf",
+      "notes": null,
+      "price": null,
+      "year": null,
+      "retired_year": null,
+      "purchased_year": null,
+      "collection": null,
+      "series": null,
+      "linked_items": [
+        "Pine Cone B & B"
+      ]
+    }
+  ]
+}

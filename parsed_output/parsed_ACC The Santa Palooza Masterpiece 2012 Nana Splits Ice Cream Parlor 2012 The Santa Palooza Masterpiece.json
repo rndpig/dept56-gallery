@@ -1,0 +1,35 @@
+{
+  "source_file": "ACC The Santa Palooza Masterpiece 2012 Nana Splits Ice Cream Parlor 2012 The Santa Palooza Masterpiece.docx",
+  "houses": [
+    {
+      "name": "Nana Split’s Ice Cream Parlor",
+      "item_type": "house",
+      "sku": null,
+      "description": "A part of the North Pole Collection, designed by Department 56-inspired by magic and charming legends, bringing Christmas dreams to life for the young and the young-at-heart. Part of the Santa’s Sweet Shop Series. After a long day of making toys, Santa’s elves love to stop at Nana’s for ice cream treats. Hand-crafted and hand-painted porcelain lit building. Includes adapter cord.",
+      "notes": "Product Description  2012. A part of the North Pole Collection, designed by Department 56-inspired by magic and charming legends, bringing Christmas dreams to life for the young and the young-at-heart. Part of the Santa’s Sweet Shop Series. After a long day of making toys, Santa’s elves love to stop at Nana’s for ice cream treats. Hand-crafted and hand-painted porcelain lit building. Includes adapter cord.",
+      "price": null,
+      "year": 2012,
+      "retired_year": null,
+      "purchased_year": null,
+      "linked_items": [
+        "The Santa Palooza Masterpiece"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "name": "The Santa Palooza Masterpiece",
+      "item_type": "accessory",
+      "sku": null,
+      "description": null,
+      "notes": "The Santa Palooza Masterpiece. Sponsored",
+      "price": null,
+      "year": null,
+      "retired_year": null,
+      "purchased_year": null,
+      "linked_items": [
+        "Nana Split’s Ice Cream Parlor"
+      ]
+    }
+  ]
+}

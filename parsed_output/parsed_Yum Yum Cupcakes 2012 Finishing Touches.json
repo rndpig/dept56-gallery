@@ -1,0 +1,39 @@
+{
+  "source_file": "Yum Yum Cupcakes 2012 Finishing Touches.docx",
+  "houses": [
+    {
+      "name": "Yum Yum Cupcakes",
+      "item_type": "house",
+      "sku": "4025282",
+      "description": null,
+      "notes": "Santa's Sweet Shop Series",
+      "price": null,
+      "year": 2012,
+      "retired_year": null,
+      "purchased_year": null,
+      "collection": null,
+      "series": "Santa's Sweet Shop",
+      "linked_items": [
+        "Finishing Touches"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "name": "Finishing Touches",
+      "item_type": "accessory",
+      "sku": "4025292",
+      "description": null,
+      "notes": "Finishing Touches. Santa's Sweet Shop Series",
+      "price": null,
+      "year": 2012,
+      "retired_year": null,
+      "purchased_year": null,
+      "collection": null,
+      "series": "Santa's Sweet Shop",
+      "linked_items": [
+        "Yum Yum Cupcakes"
+      ]
+    }
+  ]
+}

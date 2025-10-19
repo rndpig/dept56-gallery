@@ -1,0 +1,33 @@
+{
+  "source_file": "ACC Ginger's Gingerbread Cookie 2020 Ginger's Cottage.docx",
+  "houses": [
+    {
+      "name": "Ginger's Cottage",
+      "item_type": "house",
+      "sku": "6005428",
+      "description": "Magical elves have built a sweet neighborhood inspired by the gingerbread houses they create for Christmas. Ginger's Cottage includes peppermint trim, scrolled icing, and an oversized gingerbread man to turn up the charm on this cozy A-frame.",
+      "notes": "SKU: 6005428 $95.00 Magical elves have built a sweet neighborhood inspired by the gingerbread houses they create for Christmas. Ginger's Cottage includes peppermint trim, scrolled icing, and an oversized gingerbread man to turn up the charm on this cozy A-frame. Introduced January 2020 Ginger’s Gingerbread Cookie, girl elf with gingerbread tree",
+      "price": 95.0,
+      "year": 2020,
+      "purchased_year": null,
+      "linked_items": [
+        "Ginger's Gingerbread Cookie"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "name": "Ginger's Gingerbread Cookie",
+      "item_type": "accessory",
+      "sku": "6005438",
+      "description": "Ginger is decorating her yard with gingerbread trees, adding extra icing and extra cheer.",
+      "notes": "Ginger's Gingerbread Cookie SKU: 6005438 $22.50  Ginger is decorating her yard with gingerbread trees, adding extra icing and extra cheer. Introduced January 2020 Retired November 2021",
+      "price": 22.5,
+      "year": null,
+      "purchased_year": null,
+      "linked_items": [
+        "Ginger's Cottage"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "source_file": "Norny's Ornament House 2022 Sparkling Highlights.docx",
+  "houses": [
+    {
+      "name": "Norny's Ornament House",
+      "item_type": "house",
+      "sku": "6009769",
+      "description": "This new residence at the North Pole is the ultimate in upcycling! Norny has turned a shiny red ornament, complete with a signature brass hanger and tag, into his new abode.",
+      "notes": "This new residence at the North Pole is the ultimate in upcycling! Norny has turned a shiny red ornament, complete with a signature brass hanger and tag, into his new abode.",
+      "price": 124.0,
+      "year": 2022,
+      "retired_year": null,
+      "purchased_year": null,
+      "collection": null,
+      "series": null,
+      "linked_items": [
+        "Sparkling Highlights"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "name": "Sparkling Highlights",
+      "item_type": "accessory",
+      "sku": "6009770",
+      "description": "Accessory – Sparkling Highlights – two elves on a ladder",
+      "notes": "Accessory – Sparkling Highlights – two elves on a ladder. Sparkling Highlights. Up on a ladder, these elves are adding a few sparkles to the new \"Norny's Ornament House.\"",
+      "price": 37.5,
+      "year": 2022,
+      "retired_year": null,
+      "purchased_year": null,
+      "collection": null,
+      "series": null,
+      "linked_items": [
+        "Norny's Ornament House"
+      ]
+    }
+  ]
+}

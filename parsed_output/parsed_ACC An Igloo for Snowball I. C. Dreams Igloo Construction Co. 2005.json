@@ -1,0 +1,35 @@
+{
+  "source_file": "ACC An Igloo for Snowball I. C. Dreams Igloo Construction Co. 2005.docx",
+  "houses": [
+    {
+      "name": "I.C. Dreams Igloo Construction Co.",
+      "item_type": "house",
+      "sku": "56.56785",
+      "description": null,
+      "notes": null,
+      "price": 70.0,
+      "year": 2005,
+      "retired_year": 2006,
+      "purchased_year": null,
+      "linked_items": [
+        "An Igloo for Snowball"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "name": "An Igloo for Snowball",
+      "item_type": "accessory",
+      "sku": "56.56878",
+      "description": null,
+      "notes": "An Igloo for Snowball",
+      "price": 12.0,
+      "year": 2005,
+      "retired_year": 2006,
+      "purchased_year": null,
+      "linked_items": [
+        "I.C. Dreams Igloo Construction Co."
+      ]
+    }
+  ]
+}

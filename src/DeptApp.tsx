@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./lib/supabase";
 import * as db from "./lib/database";
-import type { Database, House, Accessory, Collection, Tag } from "./types/database";
+import type { Database, House, Accessory, Collection, Tag, HouseAccessoryLink } from "./types/database";
 
 /**
  * Department 56 Browser — React app (Supabase Edition)
@@ -64,12 +64,16 @@ function Button({
   className = "",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { className?: string }) {
+  const baseClasses = "px-3 py-2 rounded-2xl text-sm font-medium shadow-sm border active:scale-[.99] transition disabled:opacity-50 disabled:cursor-not-allowed";
+  const defaultClasses = "border-gray-200 bg-indigo-600 text-white hover:bg-indigo-700";
+  
   return (
     <button
       {...props}
       className={
-        "px-3 py-2 rounded-2xl text-sm font-medium shadow-sm border border-gray-200 bg-white hover:bg-gray-50 active:scale-[.99] transition disabled:opacity-50 disabled:cursor-not-allowed " +
-        className
+        className 
+          ? `${baseClasses} ${className}`
+          : `${baseClasses} ${defaultClasses}`
       }
     />
   );
@@ -198,6 +202,7 @@ function HouseDetailModal({
   tagById,
   onAccessoryClick,
   onUnlink,
+  onEdit,
 }: {
   open: boolean;
   onClose: () => void;
@@ -205,8 +210,9 @@ function HouseDetailModal({
   data: Database | null;
   collById: Record<string, Collection>;
   tagById: Record<string, Tag>;
-  onAccessoryClick: (src: string, title: string) => void;
+  onAccessoryClick: (accessory: Accessory) => void;
   onUnlink: (linkId: string) => void;
+  onEdit: (houseId: string) => void;
 }) {
   const [selectedImage, setSelectedImage] = React.useState<{ url: string; name: string } | null>(null);
 
@@ -262,7 +268,15 @@ function HouseDetailModal({
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50 flex-shrink-0">
             <h2 className="text-xl font-semibold">{house.name}</h2>
-            <Button onClick={onClose}>Close</Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => onEdit(house.id)}
+                className="bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
+              >
+                Edit
+              </Button>
+              <Button onClick={onClose}>Close</Button>
+            </div>
           </div>
 
           {/* Content: Image on left (75%), thumbnails/details on right (25%) */}
@@ -320,10 +334,8 @@ function HouseDetailModal({
                       {accessories.map(({ linkId, a }) => (
                         <button
                           key={linkId}
-                          onClick={() => setSelectedImage({ url: a.photo_url!, name: a.name })}
-                          className={`w-full border-2 rounded overflow-hidden hover:border-blue-500 transition-colors ${
-                            selectedImage?.url === a.photo_url ? 'border-blue-500' : 'border-gray-300'
-                          }`}
+                          onClick={() => onAccessoryClick(a)}
+                          className="w-full border-2 rounded overflow-hidden hover:border-blue-500 transition-colors border-gray-300"
                         >
                           <img
                             src={a.photo_url!}
@@ -341,10 +353,28 @@ function HouseDetailModal({
               <div>
                 <h3 className="text-xs font-semibold text-gray-700 mb-2">Details</h3>
                 <div className="space-y-1 text-xs">
+                  {house.sku && (
+                    <div>
+                      <span className="font-medium text-gray-600">SKU:</span>
+                      <span className="ml-1">{house.sku}</span>
+                    </div>
+                  )}
+                  {house.price && (
+                    <div>
+                      <span className="font-medium text-gray-600">Price:</span>
+                      <span className="ml-1 text-green-700 font-semibold">${house.price.toFixed(2)}</span>
+                    </div>
+                  )}
                   {house.year && (
                     <div>
-                      <span className="font-medium text-gray-600">Year:</span>
+                      <span className="font-medium text-gray-600">Released:</span>
                       <span className="ml-1">{house.year}</span>
+                    </div>
+                  )}
+                  {house.retired_year && (
+                    <div>
+                      <span className="font-medium text-gray-600">Retired:</span>
+                      <span className="ml-1">{house.retired_year}</span>
                     </div>
                   )}
                   {house.purchased_year && (
@@ -353,10 +383,261 @@ function HouseDetailModal({
                       <span className="ml-1">{house.purchased_year}</span>
                     </div>
                   )}
+                  {house.collection && (
+                    <div>
+                      <span className="font-medium text-gray-600">Collection:</span>
+                      <span className="ml-1">{house.collection}</span>
+                    </div>
+                  )}
+                  {house.series && (
+                    <div>
+                      <span className="font-medium text-gray-600">Series:</span>
+                      <span className="ml-1">{house.series}</span>
+                    </div>
+                  )}
                   {skus.length > 0 && (
                     <div>
-                      <span className="font-medium text-gray-600">SKU(s):</span>
+                      <span className="font-medium text-gray-600">SKU(s) (notes):</span>
                       <span className="ml-1">{skus.join(', ')}</span>
+                    </div>
+                  )}
+                  {house.description && (
+                    <div className="pt-2">
+                      <span className="font-medium text-gray-600">Description:</span>
+                      <p className="mt-1 text-gray-700">{house.description}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Collections */}
+              {colls.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-700 mb-2">Collections</h3>
+                  <div className="flex flex-wrap gap-1">
+                    {colls.map((c) => (
+                      <Pill key={c.id}>{c.name}</Pill>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tags */}
+              {tags.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-700 mb-2">Tags</h3>
+                  <div className="flex flex-wrap gap-1">
+                    {tags.map((t) => (
+                      <span key={t.id} className="bg-gray-100 rounded-full px-2 py-0.5 text-xs text-gray-700">
+                        #{t.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function AccessoryDetailModal({
+  open,
+  onClose,
+  accessory,
+  data,
+  collById,
+  tagById,
+  onEdit,
+  onHouseClick,
+}: {
+  open: boolean;
+  onClose: () => void;
+  accessory: Accessory | null;
+  data: Database | null;
+  collById: Record<string, Collection>;
+  tagById: Record<string, Tag>;
+  onEdit: (accessoryId: string) => void;
+  onHouseClick: (house: House) => void;
+}) {
+  const [selectedImage, setSelectedImage] = React.useState<{ url: string; name: string } | null>(null);
+
+  // Initialize selected image to accessory photo when modal opens
+  React.useEffect(() => {
+    if (open && accessory?.photo_url) {
+      setSelectedImage({ url: accessory.photo_url, name: accessory.name });
+    }
+  }, [open, accessory]);
+
+  if (!open || !accessory || !data) return null;
+
+  // Get linked houses with photos
+  const houseMap = new Map<string, { linkId: string; h: House }>();
+  data.houseAccessoryLinks
+    .filter((l) => l.accessory_id === accessory.id)
+    .forEach((l) => {
+      const house = data.houses.find((x) => x.id === l.house_id);
+      if (house && house.photo_url) {
+        if (!houseMap.has(house.id)) {
+          houseMap.set(house.id, { linkId: l.id, h: house });
+        }
+      }
+    });
+  const houses = Array.from(houseMap.values());
+
+  const colls = data.accessoryCollections
+    .filter((x) => x.accessory_id === accessory.id)
+    .map((x) => collById[x.collection_id])
+    .filter(Boolean) as Collection[];
+  
+  const tags = data.accessoryTags
+    .filter((x) => x.accessory_id === accessory.id)
+    .map((x) => tagById[x.tag_id])
+    .filter(Boolean) as Tag[];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onClick={onClose}
+    >
+      <div className="max-w-4xl w-full h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <Card className="overflow-hidden h-full flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50 flex-shrink-0">
+            <h2 className="text-xl font-semibold">{accessory.name}</h2>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => onEdit(accessory.id)}
+                className="bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
+              >
+                Edit
+              </Button>
+              <Button onClick={onClose}>Close</Button>
+            </div>
+          </div>
+
+          {/* Content: Image on left (75%), thumbnails/details on right (25%) */}
+          <div className="flex flex-col lg:flex-row flex-1 min-h-0">
+            {/* Left: Large Image Display */}
+            <div className="lg:w-3/4 bg-gray-100 flex flex-col min-h-0">
+              {/* Selected item name header */}
+              {selectedImage && (
+                <div className="bg-gray-200 px-4 py-2 border-b border-gray-300 flex-shrink-0">
+                  <h3 className="text-sm font-semibold text-gray-800">{selectedImage.name}</h3>
+                </div>
+              )}
+              {/* Image */}
+              <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+                {selectedImage?.url ? (
+                  <img 
+                    src={selectedImage.url} 
+                    alt={selectedImage.name} 
+                    className="max-w-full max-h-full object-contain"
+                  />
+                ) : (
+                  <div className="p-12 text-gray-400 text-center">No photo available</div>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Thumbnails and Metadata */}
+            <div className="lg:w-1/4 overflow-y-auto p-4 space-y-4 bg-gray-50">
+              {/* Thumbnails Section */}
+              <div>
+                {/* Accessory Section */}
+                <div className="mb-3">
+                  <h3 className="text-xs font-semibold text-gray-700 mb-2 uppercase">Accessory</h3>
+                  {accessory.photo_url && (
+                    <button
+                      onClick={() => setSelectedImage({ url: accessory.photo_url!, name: accessory.name })}
+                      className={`w-full border-2 rounded overflow-hidden hover:border-blue-500 transition-colors ${
+                        selectedImage?.url === accessory.photo_url ? 'border-blue-500' : 'border-gray-300'
+                      }`}
+                    >
+                      <img
+                        src={accessory.photo_url}
+                        alt={accessory.name}
+                        className="w-full h-20 object-contain bg-white"
+                      />
+                    </button>
+                  )}
+                </div>
+
+                {/* Linked Houses Section */}
+                {houses.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-700 mb-2 uppercase">Linked Houses ({houses.length})</h3>
+                    <div className="space-y-2">
+                      {houses.map(({ linkId, h }) => (
+                        <button
+                          key={linkId}
+                          onClick={() => onHouseClick(h)}
+                          className="w-full border-2 rounded overflow-hidden hover:border-blue-500 transition-colors border-gray-300"
+                        >
+                          <img
+                            src={h.photo_url!}
+                            alt={h.name}
+                            className="w-full h-20 object-contain bg-white"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Metadata */}
+              <div>
+                <h3 className="text-xs font-semibold text-gray-700 mb-2">Details</h3>
+                <div className="space-y-1 text-xs">
+                  {accessory.sku && (
+                    <div>
+                      <span className="font-medium text-gray-600">SKU:</span>
+                      <span className="ml-1">{accessory.sku}</span>
+                    </div>
+                  )}
+                  {accessory.price && (
+                    <div>
+                      <span className="font-medium text-gray-600">Price:</span>
+                      <span className="ml-1 text-green-700 font-semibold">${accessory.price.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {accessory.year && (
+                    <div>
+                      <span className="font-medium text-gray-600">Released:</span>
+                      <span className="ml-1">{accessory.year}</span>
+                    </div>
+                  )}
+                  {accessory.retired_year && (
+                    <div>
+                      <span className="font-medium text-gray-600">Retired:</span>
+                      <span className="ml-1">{accessory.retired_year}</span>
+                    </div>
+                  )}
+                  {accessory.purchased_year && (
+                    <div>
+                      <span className="font-medium text-gray-600">Purchased:</span>
+                      <span className="ml-1">{accessory.purchased_year}</span>
+                    </div>
+                  )}
+                  {accessory.collection && (
+                    <div>
+                      <span className="font-medium text-gray-600">Collection:</span>
+                      <span className="ml-1">{accessory.collection}</span>
+                    </div>
+                  )}
+                  {accessory.series && (
+                    <div>
+                      <span className="font-medium text-gray-600">Series:</span>
+                      <span className="ml-1">{accessory.series}</span>
+                    </div>
+                  )}
+                  {accessory.description && (
+                    <div className="pt-2">
+                      <span className="font-medium text-gray-600">Description:</span>
+                      <p className="mt-1 text-gray-700">{accessory.description}</p>
                     </div>
                   )}
                 </div>
@@ -449,6 +730,8 @@ function MultiSelectChips<T extends { id: string; name: string }>({
 function HouseForm({
   data,
   onSave,
+  onDelete,
+  onMoveToAccessory,
   initial,
 }: {
   data: Database;
@@ -457,18 +740,43 @@ function HouseForm({
     collections: string[],
     tags: string[]
   ) => Promise<void>;
-  initial?: Partial<House> & { collectionIds?: string[]; tagIds?: string[] };
+  onDelete?: (id: string, name: string) => Promise<void>;
+  onMoveToAccessory?: (id: string, name: string) => Promise<void>;
+  initial?: Partial<House> & { collectionIds?: string[]; tagIds?: string[]; id?: string };
 }) {
   const [name, setName] = useState(initial?.name || "");
   const [year, setYear] = useState<number | undefined>(initial?.year);
+  const [retiredYear, setRetiredYear] = useState<number | undefined>(initial?.retired_year);
+  const [description, setDescription] = useState(initial?.description || "");
+  const [sku, setSku] = useState(initial?.sku || "");
+  const [price, setPrice] = useState<number | undefined>(initial?.price);
+  const [collectionName, setCollectionName] = useState(initial?.collection || "");
+  const [series, setSeries] = useState(initial?.series || "");
   const [notes, setNotes] = useState(initial?.notes || "");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(initial?.photo_url);
-  const [purchasedOn, setPurchasedOn] = useState(initial?.purchased_on || "");
   const [purchasedYear, setPurchasedYear] = useState<number | undefined>(initial?.purchased_year);
   const [collectionIds, setCollectionIds] = useState<string[]>(initial?.collectionIds || []);
   const [tagIds, setTagIds] = useState<string[]>(initial?.tagIds || []);
   const [saving, setSaving] = useState(false);
+
+  // Update form when initial changes (when user selects a different house)
+  React.useEffect(() => {
+    setName(initial?.name || "");
+    setYear(initial?.year);
+    setRetiredYear(initial?.retired_year);
+    setDescription(initial?.description || "");
+    setSku(initial?.sku || "");
+    setPrice(initial?.price);
+    setCollectionName(initial?.collection || "");
+    setSeries(initial?.series || "");
+    setNotes(initial?.notes || "");
+    setPhotoUrl(initial?.photo_url);
+    setPurchasedYear(initial?.purchased_year);
+    setCollectionIds(initial?.collectionIds || []);
+    setTagIds(initial?.tagIds || []);
+    setPhotoFile(null);
+  }, [initial]);
 
   async function handleFile(file?: File) {
     if (file) {
@@ -495,9 +803,14 @@ function HouseForm({
           const h: Omit<House, "id" | "user_id" | "created_at" | "updated_at"> = {
             name: name.trim(),
             year,
+            retired_year: retiredYear,
+            description: description.trim() || undefined,
+            sku: sku.trim() || undefined,
+            price,
+            collection: collectionName.trim() || undefined,
+            series: series.trim() || undefined,
             notes: notes.trim() || undefined,
             photo_url: finalPhotoUrl,
-            purchased_on: purchasedOn || undefined,
             purchased_year: purchasedYear,
           };
           await onSave(h, collectionIds, tagIds);
@@ -510,68 +823,132 @@ function HouseForm({
       }}
       className="space-y-3"
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field label="House name">
+      {/* House Name - Full Width */}
+      <Field label="House name">
+        <TextInput
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          placeholder="e.g., Mickey's Stuffed Animals"
+          disabled={saving}
+        />
+      </Field>
+
+      {/* SKU and Price Row - Compact */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="SKU / Item Number">
           <TextInput
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            placeholder="e.g., Mickey's Stuffed Animals"
+            value={sku}
+            onChange={(e) => setSku(e.target.value)}
+            placeholder="e.g., 56.12345"
             disabled={saving}
           />
         </Field>
-        <Field label="Year">
+        <Field label="Price ($)">
+          <TextInput
+            type="number"
+            step="0.01"
+            value={price ?? ""}
+            onChange={(e) => setPrice(e.target.value ? Number(e.target.value) : undefined)}
+            placeholder="79.99"
+            disabled={saving}
+          />
+        </Field>
+      </div>
+
+      {/* Years Row - Compact, 4 columns */}
+      <div className="grid grid-cols-4 gap-3">
+        <Field label="Released">
           <TextInput
             type="number"
             value={year ?? ""}
             onChange={(e) => setYear(e.target.value ? Number(e.target.value) : undefined)}
             placeholder="2018"
             disabled={saving}
+            className="w-full"
           />
         </Field>
-        <Field label="Purchased on (date)">
+        <Field label="Retired">
           <TextInput
-            type="date"
-            value={purchasedOn}
-            onChange={(e) => setPurchasedOn(e.target.value)}
+            type="number"
+            value={retiredYear ?? ""}
+            onChange={(e) => setRetiredYear(e.target.value ? Number(e.target.value) : undefined)}
+            placeholder="2020"
             disabled={saving}
+            className="w-full"
           />
         </Field>
-        <Field label="Purchased year">
+        <Field label="Purchased">
           <TextInput
             type="number"
             value={purchasedYear ?? ""}
             onChange={(e) =>
               setPurchasedYear(e.target.value ? Number(e.target.value) : undefined)
             }
-            placeholder="If date unknown"
+            placeholder="2021"
+            disabled={saving}
+            className="w-full"
+          />
+        </Field>
+      </div>
+
+      {/* Collection and Series Row */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Collection">
+          <TextInput
+            value={collectionName}
+            onChange={(e) => setCollectionName(e.target.value)}
+            placeholder="e.g., North Pole Series"
             disabled={saving}
           />
         </Field>
-        <Field label="Photo">
+        <Field label="Series">
+          <TextInput
+            value={series}
+            onChange={(e) => setSeries(e.target.value)}
+            placeholder="e.g., Original Snow Village"
+            disabled={saving}
+          />
+        </Field>
+      </div>
+
+      {/* Photo Section with Thumbnail */}
+      <Field label="Photo">
+        <div className="flex items-start gap-3">
           <input
             type="file"
             accept="image/*"
             onChange={(e) => handleFile(e.target.files?.[0])}
             disabled={saving}
+            className="flex-1"
           />
-        </Field>
-        <Field label="Notes">
-          <TextArea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Any details"
-            disabled={saving}
-          />
-        </Field>
-        {photoUrl && (
-          <img
-            src={photoUrl}
-            alt="preview"
-            className="h-24 w-24 rounded-xl object-cover border"
-          />
-        )}
-      </div>
+          {photoUrl && (
+            <img
+              src={photoUrl}
+              alt="preview"
+              className="h-20 w-20 rounded-xl object-cover border border-gray-300 flex-shrink-0"
+            />
+          )}
+        </div>
+      </Field>
+
+      <Field label="Description">
+        <TextArea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Brief description of the house"
+          disabled={saving}
+          rows={2}
+        />
+      </Field>
+      <Field label="Notes">
+        <TextArea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Additional notes"
+          disabled={saving}
+        />
+      </Field>
 
       <MultiSelectChips
         options={data.collections}
@@ -592,8 +969,28 @@ function HouseForm({
           disabled={saving}
           className="bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
         >
-          {saving ? "Saving..." : "Save House"}
+          {saving ? "Saving..." : initial?.id ? "Update House" : "Save House"}
         </Button>
+        {initial?.id && onMoveToAccessory && (
+          <Button
+            type="button"
+            onClick={() => onMoveToAccessory(initial.id!, name)}
+            disabled={saving}
+            className="bg-amber-600 text-white border-amber-600 hover:bg-amber-700"
+          >
+            Move to Accessories
+          </Button>
+        )}
+        {initial?.id && onDelete && (
+          <Button
+            type="button"
+            onClick={() => onDelete(initial.id!, name)}
+            disabled={saving}
+            className="bg-red-600 text-white border-red-600 hover:bg-red-700"
+          >
+            Delete
+          </Button>
+        )}
       </div>
     </form>
   );
@@ -602,25 +999,54 @@ function HouseForm({
 function AccessoryForm({
   data,
   onSave,
+  onDelete,
+  onMoveToHouse,
   initial,
 }: {
   data: Database;
   onSave: (
     a: Omit<Accessory, "id" | "user_id" | "created_at" | "updated_at">,
     collections: string[],
-    tags: string[]
+    tags: string[],
+    existingId?: string
   ) => Promise<void>;
-  initial?: Partial<Accessory> & { collectionIds?: string[]; tagIds?: string[] };
+  onDelete?: (id: string, name: string) => Promise<void>;
+  onMoveToHouse?: (id: string, name: string) => Promise<void>;
+  initial?: Partial<Accessory> & { collectionIds?: string[]; tagIds?: string[]; id?: string };
 }) {
   const [name, setName] = useState(initial?.name || "");
+  const [year, setYear] = useState<number | undefined>(initial?.year);
+  const [retiredYear, setRetiredYear] = useState<number | undefined>(initial?.retired_year);
+  const [description, setDescription] = useState(initial?.description || "");
+  const [sku, setSku] = useState(initial?.sku || "");
+  const [price, setPrice] = useState<number | undefined>(initial?.price);
+  const [collectionName, setCollectionName] = useState(initial?.collection || "");
+  const [series, setSeries] = useState(initial?.series || "");
   const [notes, setNotes] = useState(initial?.notes || "");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(initial?.photo_url);
-  const [purchasedOn, setPurchasedOn] = useState(initial?.purchased_on || "");
   const [purchasedYear, setPurchasedYear] = useState<number | undefined>(initial?.purchased_year);
   const [collectionIds, setCollectionIds] = useState<string[]>(initial?.collectionIds || []);
   const [tagIds, setTagIds] = useState<string[]>(initial?.tagIds || []);
   const [saving, setSaving] = useState(false);
+
+  // Update form when initial changes (when user selects a different accessory)
+  React.useEffect(() => {
+    setName(initial?.name || "");
+    setYear(initial?.year);
+    setRetiredYear(initial?.retired_year);
+    setDescription(initial?.description || "");
+    setSku(initial?.sku || "");
+    setPrice(initial?.price);
+    setCollectionName(initial?.collection || "");
+    setSeries(initial?.series || "");
+    setNotes(initial?.notes || "");
+    setPhotoUrl(initial?.photo_url);
+    setPurchasedYear(initial?.purchased_year);
+    setCollectionIds(initial?.collectionIds || []);
+    setTagIds(initial?.tagIds || []);
+    setPhotoFile(null);
+  }, [initial]);
 
   async function handleFile(file?: File) {
     if (file) {
@@ -644,12 +1070,18 @@ function AccessoryForm({
 
           const a: Omit<Accessory, "id" | "user_id" | "created_at" | "updated_at"> = {
             name: name.trim(),
+            year,
+            retired_year: retiredYear,
+            description: description.trim() || undefined,
+            sku: sku.trim() || undefined,
+            price,
+            collection: collectionName.trim() || undefined,
+            series: series.trim() || undefined,
             notes: notes.trim() || undefined,
             photo_url: finalPhotoUrl,
-            purchased_on: purchasedOn || undefined,
             purchased_year: purchasedYear,
           };
-          await onSave(a, collectionIds, tagIds);
+          await onSave(a, collectionIds, tagIds, initial?.id);
         } catch (error) {
           console.error("Error saving accessory:", error);
           alert("Failed to save accessory. Please try again.");
@@ -659,59 +1091,132 @@ function AccessoryForm({
       }}
       className="space-y-3"
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field label="Accessory name">
+      {/* Accessory Name - Full Width */}
+      <Field label="Accessory name">
+        <TextInput
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          placeholder="e.g., Stuffing Station"
+          disabled={saving}
+        />
+      </Field>
+
+      {/* SKU and Price Row - Compact */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="SKU / Item Number">
           <TextInput
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            placeholder="e.g., Stuffing Station"
+            value={sku}
+            onChange={(e) => setSku(e.target.value)}
+            placeholder="e.g., 56.12345"
             disabled={saving}
           />
         </Field>
-        <Field label="Purchased on (date)">
+        <Field label="Price ($)">
           <TextInput
-            type="date"
-            value={purchasedOn}
-            onChange={(e) => setPurchasedOn(e.target.value)}
+            type="number"
+            step="0.01"
+            value={price ?? ""}
+            onChange={(e) => setPrice(e.target.value ? Number(e.target.value) : undefined)}
+            placeholder="29.99"
             disabled={saving}
           />
         </Field>
-        <Field label="Purchased year">
+      </div>
+
+      {/* Years Row - Compact, 4 columns */}
+      <div className="grid grid-cols-4 gap-3">
+        <Field label="Released">
+          <TextInput
+            type="number"
+            value={year ?? ""}
+            onChange={(e) => setYear(e.target.value ? Number(e.target.value) : undefined)}
+            placeholder="2018"
+            disabled={saving}
+            className="w-full"
+          />
+        </Field>
+        <Field label="Retired">
+          <TextInput
+            type="number"
+            value={retiredYear ?? ""}
+            onChange={(e) => setRetiredYear(e.target.value ? Number(e.target.value) : undefined)}
+            placeholder="2020"
+            disabled={saving}
+            className="w-full"
+          />
+        </Field>
+        <Field label="Purchased">
           <TextInput
             type="number"
             value={purchasedYear ?? ""}
             onChange={(e) =>
               setPurchasedYear(e.target.value ? Number(e.target.value) : undefined)
             }
-            placeholder="If date unknown"
+            placeholder="2021"
+            disabled={saving}
+            className="w-full"
+          />
+        </Field>
+      </div>
+
+      {/* Collection and Series Row */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Collection">
+          <TextInput
+            value={collectionName}
+            onChange={(e) => setCollectionName(e.target.value)}
+            placeholder="e.g., North Pole Series"
             disabled={saving}
           />
         </Field>
-        <Field label="Photo">
+        <Field label="Series">
+          <TextInput
+            value={series}
+            onChange={(e) => setSeries(e.target.value)}
+            placeholder="e.g., Original Snow Village"
+            disabled={saving}
+          />
+        </Field>
+      </div>
+
+      {/* Photo Section with Thumbnail */}
+      <Field label="Photo">
+        <div className="flex items-start gap-3">
           <input
             type="file"
             accept="image/*"
             onChange={(e) => handleFile(e.target.files?.[0])}
             disabled={saving}
+            className="flex-1"
           />
-        </Field>
-        <Field label="Notes">
-          <TextArea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Any details"
-            disabled={saving}
-          />
-        </Field>
-        {photoUrl && (
-          <img
-            src={photoUrl}
-            alt="preview"
-            className="h-24 w-24 rounded-xl object-cover border"
-          />
-        )}
-      </div>
+          {photoUrl && (
+            <img
+              src={photoUrl}
+              alt="preview"
+              className="h-20 w-20 rounded-xl object-cover border border-gray-300 flex-shrink-0"
+            />
+          )}
+        </div>
+      </Field>
+
+      <Field label="Description">
+        <TextArea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Brief description of the accessory"
+          disabled={saving}
+          rows={2}
+        />
+      </Field>
+      <Field label="Notes">
+        <TextArea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Additional notes"
+          disabled={saving}
+        />
+      </Field>
 
       <MultiSelectChips
         options={data.collections}
@@ -732,8 +1237,28 @@ function AccessoryForm({
           disabled={saving}
           className="bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
         >
-          {saving ? "Saving..." : "Save Accessory"}
+          {saving ? "Saving..." : initial?.id ? "Update Accessory" : "Save Accessory"}
         </Button>
+        {initial?.id && onMoveToHouse && (
+          <Button
+            type="button"
+            onClick={() => onMoveToHouse(initial.id!, name)}
+            disabled={saving}
+            className="bg-amber-600 text-white border-amber-600 hover:bg-amber-700"
+          >
+            Move to Houses
+          </Button>
+        )}
+        {initial?.id && onDelete && (
+          <Button
+            type="button"
+            onClick={() => onDelete(initial.id!, name)}
+            disabled={saving}
+            className="bg-red-600 text-white border-red-600 hover:bg-red-700"
+          >
+            Delete
+          </Button>
+        )}
       </div>
     </form>
   );
@@ -754,11 +1279,21 @@ export default function App() {
   const [yearTo, setYearTo] = useState<string>("");
   const [linkHouseId, setLinkHouseId] = useState<string>("");
   const [linkAccId, setLinkAccId] = useState<string>("");
+  const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
+  
+  // Manage tab - edit existing items
+  const [editHouseId, setEditHouseId] = useState<string>("");
+  const [editAccessoryId, setEditAccessoryId] = useState<string>("");
+
+  // Refs for scrolling
+  const accessoriesSectionRef = useRef<HTMLDivElement>(null);
 
   // Modals
   const imageModal = useModal<{ title?: string; src?: string }>();
   const houseModal = useModal<House>();
+  const accessoryModal = useModal<Accessory>();
   const fileRef = useRef<HTMLInputElement>(null);
+  const accessoryFormRef = useRef<HTMLDivElement>(null);
 
   // Derived: maps for quick lookup (MUST be before early returns!)
   const collById = useMemo(
@@ -829,6 +1364,95 @@ export default function App() {
     return true;
   }
 
+  // Get duplicate item IDs
+  const duplicateItemIds = useMemo(() => {
+    if (!data) return { houseIds: new Set<string>(), accessoryIds: new Set<string>() };
+
+    const houseIds = new Set<string>();
+    const accessoryIds = new Set<string>();
+
+    // Check houses for exact matches
+    const housesByName = new Map<string, House[]>();
+    data.houses.forEach(h => {
+      const name = h.name.trim();
+      if (!housesByName.has(name)) {
+        housesByName.set(name, []);
+      }
+      housesByName.get(name)!.push(h);
+    });
+    housesByName.forEach((houses) => {
+      if (houses.length > 1) {
+        houses.forEach(h => houseIds.add(h.id));
+      }
+    });
+
+    // Check houses for case-insensitive matches
+    const housesByLowerName = new Map<string, House[]>();
+    data.houses.forEach(h => {
+      const name = h.name.trim().toLowerCase();
+      if (!housesByLowerName.has(name)) {
+        housesByLowerName.set(name, []);
+      }
+      housesByLowerName.get(name)!.push(h);
+    });
+    housesByLowerName.forEach((houses) => {
+      if (houses.length > 1) {
+        const names = houses.map(h => h.name.trim());
+        const uniqueNames = new Set(names);
+        if (uniqueNames.size > 1) {
+          houses.forEach(h => houseIds.add(h.id));
+        }
+      }
+    });
+
+    // Check for houses that also exist as accessories
+    data.houses.forEach(h => {
+      const matchingAccessory = data.accessories.find(a => 
+        a.name.trim().toLowerCase() === h.name.trim().toLowerCase()
+      );
+      if (matchingAccessory) {
+        houseIds.add(h.id);
+        accessoryIds.add(matchingAccessory.id);
+      }
+    });
+
+    // Check accessories for exact matches
+    const accessoriesByName = new Map<string, Accessory[]>();
+    data.accessories.forEach(a => {
+      const name = a.name.trim();
+      if (!accessoriesByName.has(name)) {
+        accessoriesByName.set(name, []);
+      }
+      accessoriesByName.get(name)!.push(a);
+    });
+    accessoriesByName.forEach((accessories) => {
+      if (accessories.length > 1) {
+        accessories.forEach(a => accessoryIds.add(a.id));
+      }
+    });
+
+    // Check accessories for case-insensitive matches
+    const accessoriesByLowerName = new Map<string, Accessory[]>();
+    data.accessories.forEach(a => {
+      const name = a.name.trim().toLowerCase();
+      if (!accessoriesByLowerName.has(name)) {
+        accessoriesByLowerName.set(name, []);
+      }
+      accessoriesByLowerName.get(name)!.push(a);
+    });
+    accessoriesByLowerName.forEach((accessories) => {
+      if (accessories.length > 1) {
+        const names = accessories.map(a => a.name.trim());
+        const uniqueNames = new Set(names);
+        if (uniqueNames.size > 1) {
+          accessories.forEach(a => accessoryIds.add(a.id));
+        }
+      }
+    });
+
+    return { houseIds, accessoryIds };
+  }, [data]);
+
   const filteredHouses = useMemo(() => {
     if (!data) return [];
     let rows = data.houses.filter(houseMatches);
@@ -839,8 +1463,9 @@ export default function App() {
       rows = rows.filter((h) => linkedHouseIds.has(h.id));
     }
     if (houseFilter) rows = rows.filter((h) => h.id === houseFilter);
+    if (showDuplicatesOnly) rows = rows.filter((h) => duplicateItemIds.houseIds.has(h.id));
     return rows.sort((a, b) => a.name.localeCompare(b.name));
-  }, [data, q, houseFilter, accessoryFilter, collectionFilter, yearFrom, yearTo]);
+  }, [data, q, houseFilter, accessoryFilter, collectionFilter, yearFrom, yearTo, showDuplicatesOnly, duplicateItemIds]);
 
   const filteredAccessories = useMemo(() => {
     if (!data) return [];
@@ -852,8 +1477,9 @@ export default function App() {
       rows = rows.filter((a) => linkedAccIds.has(a.id));
     }
     if (accessoryFilter) rows = rows.filter((a) => a.id === accessoryFilter);
+    if (showDuplicatesOnly) rows = rows.filter((a) => duplicateItemIds.accessoryIds.has(a.id));
     return rows.sort((a, b) => a.name.localeCompare(b.name));
-  }, [data, q, houseFilter, accessoryFilter, collectionFilter, yearFrom, yearTo]);
+  }, [data, q, houseFilter, accessoryFilter, collectionFilter, yearFrom, yearTo, showDuplicatesOnly, duplicateItemIds]);
 
   // Load data from Supabase
   const loadData = async () => {
@@ -930,15 +1556,61 @@ export default function App() {
   async function addAccessory(
     a: Omit<Accessory, "id" | "user_id" | "created_at" | "updated_at">,
     collectionIds: string[],
-    tagIds: string[]
+    tagIds: string[],
+    existingId?: string
   ) {
+    if (!data) return;
+    
     try {
-      const newAccessory = await db.createAccessory(a, collectionIds, tagIds);
+      let accessoryId: string;
+      
+      if (existingId) {
+        // Update existing accessory
+        await db.updateAccessory(existingId, a);
+        
+        // Update collections - delete all and re-add
+        const currentCollections = data.accessoryCollections.filter(ac => ac.accessory_id === existingId);
+        for (const link of currentCollections) {
+          await supabase.from('accessory_collections').delete().eq('id', link.id);
+        }
+        if (collectionIds.length > 0) {
+          await supabase.from('accessory_collections').insert(
+            collectionIds.map(collection_id => ({
+              accessory_id: existingId,
+              collection_id
+            }))
+          );
+        }
+        
+        // Update tags - delete all and re-add
+        const currentTags = data.accessoryTags.filter(at => at.accessory_id === existingId);
+        for (const link of currentTags) {
+          await supabase.from('accessory_tags').delete().eq('id', link.id);
+        }
+        if (tagIds.length > 0) {
+          await supabase.from('accessory_tags').insert(
+            tagIds.map(tag_id => ({
+              accessory_id: existingId,
+              tag_id,
+              source: 'manual' as const,
+              reviewed: true
+            }))
+          );
+        }
+        
+        accessoryId = existingId;
+      } else {
+        // Create new accessory
+        const newAccessory = await db.createAccessory(a, collectionIds, tagIds);
+        accessoryId = newAccessory.id;
+      }
+      
       await loadData(); // Refresh data
       setTab("browse");
-      setAccessoryFilter(newAccessory.id);
+      setAccessoryFilter(accessoryId);
+      setEditAccessoryId(""); // Clear the edit selection
     } catch (error) {
-      console.error("Error adding accessory:", error);
+      console.error("Error adding/updating accessory:", error);
       throw error;
     }
   }
@@ -965,6 +1637,146 @@ export default function App() {
     } catch (error) {
       console.error("Error unlinking:", error);
       alert("Failed to unlink. Please try again.");
+    }
+  }
+
+  async function deleteHouse(houseId: string, houseName: string) {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${houseName}"?\n\nThis will also remove all links to accessories, but the accessories themselves will not be deleted.\n\nThis action cannot be undone.`
+    );
+    if (!confirmed) return;
+    
+    try {
+      await db.deleteHouse(houseId);
+      await loadData();
+      setEditHouseId(""); // Clear the edit selection
+      alert("House deleted successfully.");
+    } catch (error) {
+      console.error("Error deleting house:", error);
+      alert("Failed to delete house. Please try again.");
+    }
+  }
+
+  async function deleteAccessory(accessoryId: string, accessoryName: string) {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${accessoryName}"?\n\nThis will also remove all links to houses, but the houses themselves will not be deleted.\n\nThis action cannot be undone.`
+    );
+    if (!confirmed) return;
+    
+    try {
+      await db.deleteAccessory(accessoryId);
+      await loadData();
+      setEditAccessoryId(""); // Clear the edit selection
+      alert("Accessory deleted successfully.");
+    } catch (error) {
+      console.error("Error deleting accessory:", error);
+      alert("Failed to delete accessory. Please try again.");
+    }
+  }
+
+  async function moveAccessoryToHouse(accessoryId: string, accessoryName: string) {
+    const confirmed = window.confirm(
+      `Are you sure you want to move "${accessoryName}" to the Houses table?\n\nAll data (photo, metadata, collections, tags) will be preserved, and any links to houses will be removed.\n\nThis action cannot be undone.`
+    );
+    if (!confirmed) return;
+    
+    try {
+      if (!data) return;
+      
+      // Get the accessory data
+      const accessory = data.accessories.find(a => a.id === accessoryId);
+      if (!accessory) {
+        alert("Accessory not found.");
+        return;
+      }
+
+      // Get collections and tags
+      const collectionIds = data.accessoryCollections
+        .filter(ac => ac.accessory_id === accessoryId)
+        .map(ac => ac.collection_id);
+      const tagIds = data.accessoryTags
+        .filter(at => at.accessory_id === accessoryId)
+        .map(at => at.tag_id);
+
+      // Create as house
+      const houseData: Omit<House, "id" | "user_id" | "created_at" | "updated_at"> = {
+        name: accessory.name,
+        year: accessory.year,
+        retired_year: accessory.retired_year,
+        description: accessory.description,
+        sku: accessory.sku,
+        price: accessory.price,
+        collection: accessory.collection,
+        series: accessory.series,
+        notes: accessory.notes,
+        photo_url: accessory.photo_url,
+        purchased_year: accessory.purchased_year,
+      };
+
+      await db.createHouse(houseData, collectionIds, tagIds);
+      
+      // Delete the accessory (this also removes links)
+      await db.deleteAccessory(accessoryId);
+      
+      await loadData();
+      setEditAccessoryId(""); // Clear the edit selection
+      alert(`"${accessoryName}" moved to Houses successfully.`);
+    } catch (error) {
+      console.error("Error moving accessory to house:", error);
+      alert("Failed to move item. Please try again.");
+    }
+  }
+
+  async function moveHouseToAccessory(houseId: string, houseName: string) {
+    const confirmed = window.confirm(
+      `Are you sure you want to move "${houseName}" to the Accessories table?\n\nAll data (photo, metadata, collections, tags) will be preserved, and any links to accessories will be removed.\n\nThis action cannot be undone.`
+    );
+    if (!confirmed) return;
+    
+    try {
+      if (!data) return;
+      
+      // Get the house data
+      const house = data.houses.find(h => h.id === houseId);
+      if (!house) {
+        alert("House not found.");
+        return;
+      }
+
+      // Get collections and tags
+      const collectionIds = data.houseCollections
+        .filter(hc => hc.house_id === houseId)
+        .map(hc => hc.collection_id);
+      const tagIds = data.houseTags
+        .filter(ht => ht.house_id === houseId)
+        .map(ht => ht.tag_id);
+
+      // Create as accessory
+      const accessoryData: Omit<Accessory, "id" | "user_id" | "created_at" | "updated_at"> = {
+        name: house.name,
+        year: house.year,
+        retired_year: house.retired_year,
+        description: house.description,
+        sku: house.sku,
+        price: house.price,
+        collection: house.collection,
+        series: house.series,
+        notes: house.notes,
+        photo_url: house.photo_url,
+        purchased_year: house.purchased_year,
+      };
+
+      await db.createAccessory(accessoryData, collectionIds, tagIds);
+      
+      // Delete the house (this also removes links)
+      await db.deleteHouse(houseId);
+      
+      await loadData();
+      setEditHouseId(""); // Clear the edit selection
+      alert(`"${houseName}" moved to Accessories successfully.`);
+    } catch (error) {
+      console.error("Error moving house to accessory:", error);
+      alert("Failed to move item. Please try again.");
     }
   }
 
@@ -1049,14 +1861,25 @@ export default function App() {
           )}
         </div>
         <div className="p-3 space-y-2">
-          <div className="font-semibold leading-tight">{h.name}</div>
-          <div className="flex gap-2 flex-wrap">
-            {h.year && <Pill>Year {h.year}</Pill>}
-            {h.purchased_year && <Pill>Purchased {h.purchased_year}</Pill>}
-            {colls.map((c) => (
-              <Pill key={c.id}>{c.name}</Pill>
-            ))}
+          <div 
+            className="font-semibold leading-tight cursor-pointer hover:text-indigo-600"
+            onClick={() => houseModal.show(h)}
+          >
+            {h.name}
           </div>
+          {(h.collection || h.series) && (
+            <div className="text-xs text-gray-600">
+              {h.collection && <div>Collection: {h.collection}</div>}
+              {h.series && <div>Series: {h.series}</div>}
+            </div>
+          )}
+          {colls.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {colls.map((c) => (
+                <Pill key={c.id}>{c.name}</Pill>
+              ))}
+            </div>
+          )}
           {tags.length > 0 && (
             <div className="flex gap-1 flex-wrap text-[11px] text-gray-700">
               {tags.map((t) => (
@@ -1096,25 +1919,37 @@ export default function App() {
       .filter(Boolean) as Tag[];
     
     return (
-      <Card className="overflow-hidden">
-        {a.photo_url ? (
-          <button
-            className="block w-full"
-            onClick={() => imageModal.show({ src: a.photo_url, title: a.name })}
-          >
+      <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
+        <div
+          className="block w-full"
+          onClick={() => accessoryModal.show(a)}
+        >
+          {a.photo_url ? (
             <img src={a.photo_url} alt={a.name} className="w-full h-48 object-cover" />
-          </button>
-        ) : (
-          <div className="w-full h-48 grid place-items-center text-gray-400 text-sm">No photo</div>
-        )}
+          ) : (
+            <div className="w-full h-48 grid place-items-center text-gray-400 text-sm">No photo</div>
+          )}
+        </div>
         <div className="p-3 space-y-2">
-          <div className="font-semibold leading-tight">{a.name}</div>
-          <div className="flex gap-2 flex-wrap">
-            {a.purchased_year && <Pill>Purchased {a.purchased_year}</Pill>}
-            {colls.map((c) => (
-              <Pill key={c.id}>{c.name}</Pill>
-            ))}
+          <div 
+            className="font-semibold leading-tight cursor-pointer hover:text-indigo-600"
+            onClick={() => accessoryModal.show(a)}
+          >
+            {a.name}
           </div>
+          {(a.collection || a.series) && (
+            <div className="text-xs text-gray-600">
+              {a.collection && <div>Collection: {a.collection}</div>}
+              {a.series && <div>Series: {a.series}</div>}
+            </div>
+          )}
+          {colls.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {colls.map((c) => (
+                <Pill key={c.id}>{c.name}</Pill>
+              ))}
+            </div>
+          )}
           {tags.length > 0 && (
             <div className="flex gap-1 flex-wrap text-[11px] text-gray-700">
               {tags.map((t) => (
@@ -1122,11 +1957,6 @@ export default function App() {
                   #{t.name}
                 </span>
               ))}
-            </div>
-          )}
-          {houses.length > 0 && (
-            <div className="text-xs text-gray-700">
-              Linked to: {houses.map(({ h }) => h.name).join(", ")}
             </div>
           )}
         </div>
@@ -1139,6 +1969,29 @@ export default function App() {
     linkHouseId &&
     linkAccId &&
     !data.houseAccessoryLinks.some((l) => l.house_id === linkHouseId && l.accessory_id === linkAccId);
+
+  // Scroll to accessories section
+  function scrollToAccessories() {
+    setTab("browse");
+    setTimeout(() => {
+      accessoriesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }
+
+  // Toggle duplicate filter
+  function toggleDuplicateFilter() {
+    setShowDuplicatesOnly(!showDuplicatesOnly);
+    if (!showDuplicatesOnly) {
+      setTab("browse");
+      // Clear other filters
+      setHouseFilter("");
+      setAccessoryFilter("");
+      setCollectionFilter("");
+      setYearFrom("");
+      setYearTo("");
+      setQ("");
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white text-gray-900">
@@ -1159,6 +2012,23 @@ export default function App() {
             </Button>
             <Button onClick={() => setTab("manage")} className={tab === "manage" ? "bg-gray-100" : ""}>
               Manage
+            </Button>
+            <Button 
+              onClick={scrollToAccessories}
+              className="bg-purple-600 text-white border-purple-600 hover:bg-purple-700"
+              title="Jump to Accessories section"
+            >
+              → Accessories
+            </Button>
+            <Button 
+              onClick={toggleDuplicateFilter}
+              className={showDuplicatesOnly 
+                ? "bg-orange-700 text-white border-orange-700" 
+                : "bg-orange-600 text-white border-orange-600 hover:bg-orange-700"
+              }
+              title={showDuplicatesOnly ? "Show all items" : "Show only duplicates"}
+            >
+              {showDuplicatesOnly ? "Show All" : "Show Duplicates"}
             </Button>
             <div className="hidden sm:flex items-center gap-2">
               <Button onClick={exportJSON}>Export</Button>
@@ -1260,10 +2130,33 @@ export default function App() {
 
         {tab === "browse" ? (
           <div className="grid grid-cols-1 gap-6">
+            {showDuplicatesOnly && (
+              <Card className="p-4 bg-orange-50 border-orange-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-orange-900">Showing Duplicates Only</div>
+                    <div className="text-sm text-orange-700">
+                      Found {duplicateItemIds.houseIds.size} duplicate house(s) and {duplicateItemIds.accessoryIds.size} duplicate accessory(ies).
+                      Click items to view details, or use the Manage tab to delete unwanted copies.
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={toggleDuplicateFilter}
+                    className="bg-orange-600 text-white border-orange-600 hover:bg-orange-700"
+                  >
+                    Clear Filter
+                  </Button>
+                </div>
+              </Card>
+            )}
             <section className="space-y-3">
-              <SectionTitle aside={<Pill>{filteredHouses.length}</Pill>}>Houses</SectionTitle>
+              <SectionTitle>
+                Houses ({filteredHouses.length}{showDuplicatesOnly ? ` of ${data.houses.length}` : ""})
+              </SectionTitle>
               {filteredHouses.length === 0 ? (
-                <Card className="p-6 text-sm text-gray-500">No houses match your filters.</Card>
+                <Card className="p-6 text-sm text-gray-500">
+                  {showDuplicatesOnly ? "No duplicate houses found." : "No houses match your filters."}
+                </Card>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {filteredHouses.map((h) => (
@@ -1272,13 +2165,13 @@ export default function App() {
                 </div>
               )}
             </section>
-            <section className="space-y-3">
-              <SectionTitle aside={<Pill>{filteredAccessories.length}</Pill>}>
-                Accessories
+            <section ref={accessoriesSectionRef} className="space-y-3">
+              <SectionTitle>
+                Accessories ({filteredAccessories.length}{showDuplicatesOnly ? ` of ${data.accessories.length}` : ""})
               </SectionTitle>
               {filteredAccessories.length === 0 ? (
                 <Card className="p-6 text-sm text-gray-500">
-                  No accessories match your filters.
+                  {showDuplicatesOnly ? "No duplicate accessories found." : "No accessories match your filters."}
                 </Card>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -1290,22 +2183,166 @@ export default function App() {
             </section>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <div className="lg:col-span-3 space-y-6">
-              <Card className="p-4">
-                <SectionTitle>New House</SectionTitle>
-                <div className="pt-3">
-                  <HouseForm data={data} onSave={addHouse} />
+          <div className="space-y-6">
+            {/* Top row: House form and linked accessories/accessory form */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+              <div className="lg:col-span-3">
+                <Card className="p-4">
+                  <SectionTitle>Edit / Add House</SectionTitle>
+                  <div className="pt-3 space-y-3">
+                    <Field label="Load Existing House to Edit (optional)">
+                      <Select 
+                        value={editHouseId}
+                        onChange={(e) => setEditHouseId(e.target.value)}
+                      >
+                        <option value="">-- Create New House --</option>
+                        {data.houses
+                          .slice()
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .map((h) => (
+                            <option key={h.id} value={h.id}>
+                              {h.name}
+                            </option>
+                          ))}
+                      </Select>
+                    </Field>
+                    <HouseForm 
+                      data={data} 
+                      onSave={addHouse}
+                      onDelete={deleteHouse}
+                      onMoveToAccessory={moveHouseToAccessory}
+                      initial={editHouseId ? (() => {
+                        const house = data.houses.find(h => h.id === editHouseId);
+                        if (!house) return undefined;
+                        const collectionIds = data.houseCollections
+                          .filter(hc => hc.house_id === house.id)
+                          .map(hc => hc.collection_id);
+                        const tagIds = data.houseTags
+                          .filter(ht => ht.house_id === house.id)
+                          .map(ht => ht.tag_id);
+                        return { ...house, collectionIds, tagIds };
+                      })() : undefined}
+                    />
+                  </div>
+                </Card>
+              </div>
+
+              {/* Right column: Linked accessories and accessory form */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Linked accessories - shown when editing a house */}
+                {editHouseId && (() => {
+                  const linkedAccessories = data.houseAccessoryLinks
+                    .filter((ha: HouseAccessoryLink) => ha.house_id === editHouseId)
+                    .map((ha: HouseAccessoryLink) => data.accessories.find((a: Accessory) => a.id === ha.accessory_id))
+                    .filter((a: Accessory | undefined): a is Accessory => a !== undefined);
+                  
+                  if (linkedAccessories.length === 0) {
+                    return (
+                      <Card className="p-4">
+                        <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                          Linked Accessories
+                        </h3>
+                        <p className="text-sm text-gray-500">No accessories linked to this house yet.</p>
+                      </Card>
+                    );
+                  }
+                  
+                  return (
+                    <Card className="p-4">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                        Linked Accessories ({linkedAccessories.length})
+                      </h3>
+                      <div className="space-y-3">
+                        {linkedAccessories.map((accessory) => (
+                          <div 
+                            key={accessory.id} 
+                            className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-indigo-300 transition"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                {accessory.photo_url && (
+                                  <img 
+                                    src={accessory.photo_url} 
+                                    alt={accessory.name}
+                                    className="w-10 h-10 object-cover rounded"
+                                  />
+                                )}
+                                <span className="font-medium text-gray-900">{accessory.name}</span>
+                              </div>
+                              <Button
+                                onClick={() => {
+                                  setEditAccessoryId(accessory.id);
+                                  // Scroll to the accessory form after a brief delay
+                                  setTimeout(() => {
+                                    accessoryFormRef.current?.scrollIntoView({ 
+                                      behavior: 'smooth', 
+                                      block: 'start' 
+                                    });
+                                  }, 100);
+                                }}
+                                className="text-xs px-2 py-1"
+                              >
+                                Edit
+                              </Button>
+                            </div>
+                            {accessory.description && (
+                              <div className="text-xs text-gray-600">
+                                <p>{accessory.description}</p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  );
+                })()}
+
+                {/* Accessory form - always visible */}
+                <div ref={accessoryFormRef}>
+                  <Card className="p-4">
+                    <SectionTitle>Edit / Add Accessory</SectionTitle>
+                    <div className="pt-3 space-y-3">
+                      <Field label="Load Existing Accessory to Edit (optional)">
+                        <Select 
+                          value={editAccessoryId}
+                          onChange={(e) => setEditAccessoryId(e.target.value)}
+                        >
+                          <option value="">-- Create New Accessory --</option>
+                          {data.accessories
+                            .slice()
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.name}
+                              </option>
+                            ))}
+                        </Select>
+                      </Field>
+                      <AccessoryForm 
+                        data={data} 
+                        onSave={addAccessory}
+                        onDelete={deleteAccessory}
+                        onMoveToHouse={moveAccessoryToHouse}
+                        initial={editAccessoryId ? (() => {
+                          const accessory = data.accessories.find(a => a.id === editAccessoryId);
+                          if (!accessory) return undefined;
+                          const collectionIds = data.accessoryCollections
+                            .filter(ac => ac.accessory_id === accessory.id)
+                            .map(ac => ac.collection_id);
+                          const tagIds = data.accessoryTags
+                            .filter(at => at.accessory_id === accessory.id)
+                            .map(at => at.tag_id);
+                          return { ...accessory, collectionIds, tagIds };
+                        })() : undefined}
+                      />
+                    </div>
+                  </Card>
                 </div>
-              </Card>
-              <Card className="p-4">
-                <SectionTitle>New Accessory</SectionTitle>
-                <div className="pt-3">
-                  <AccessoryForm data={data} onSave={addAccessory} />
-                </div>
-              </Card>
+              </div>
             </div>
-            <div className="lg:col-span-2 space-y-6">
+
+            {/* Bottom row: Link, Collections, Tags, Data Tools */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <Card className="p-4">
                 <SectionTitle>Link Accessory to House</SectionTitle>
                 <div className="grid grid-cols-1 gap-3 pt-3">
@@ -1420,8 +2457,36 @@ export default function App() {
         data={data}
         collById={collById}
         tagById={tagById}
-        onAccessoryClick={(src, title) => imageModal.show({ src, title })}
+        onAccessoryClick={(accessory) => {
+          houseModal.hide();
+          accessoryModal.show(accessory);
+        }}
         onUnlink={unlink}
+        onEdit={(houseId) => {
+          setTab("manage");
+          setEditHouseId(houseId);
+          houseModal.hide();
+        }}
+      />
+      <AccessoryDetailModal
+        open={accessoryModal.open}
+        onClose={accessoryModal.hide}
+        accessory={accessoryModal.data}
+        data={data}
+        collById={collById}
+        tagById={tagById}
+        onHouseClick={(house) => {
+          accessoryModal.hide();
+          houseModal.show(house);
+        }}
+        onEdit={(accessoryId) => {
+          setTab("manage");
+          setEditAccessoryId(accessoryId);
+          accessoryModal.hide();
+          setTimeout(() => {
+            accessoryFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 100);
+        }}
       />
     </div>
   );

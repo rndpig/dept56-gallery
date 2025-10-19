@@ -1,0 +1,41 @@
+{
+  "source_file": "Frosty Pines Outfitters 2002 Ready for Adventure.docx",
+  "houses": [
+    {
+      "name": "Frosty Pines Outfitters",
+      "item_type": "house",
+      "sku": "56.56752",
+      "description": null,
+      "notes": "Ready For Adventure",
+      "price": 60.0,
+      "year": 2002,
+      "retired_year": 2003,
+      "purchased_year": null,
+      "collection": null,
+      "series": null,
+      "linked_items": [
+        "Ready for Adventure"
+      ],
+      "image_path": "parsed_output\\images\\Frosty_Pines_Outfitters_house.jpg"
+    }
+  ],
+  "accessories": [
+    {
+      "name": "Ready for Adventure",
+      "item_type": "accessory",
+      "sku": null,
+      "description": null,
+      "notes": "NP READY FOR ADVENTURE",
+      "price": null,
+      "year": 2002,
+      "retired_year": 2003,
+      "purchased_year": null,
+      "collection": null,
+      "series": null,
+      "linked_items": [
+        "Frosty Pines Outfitters"
+      ],
+      "image_path": "parsed_output\\images\\Ready_for_Adventure_accessory.jpg"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "source_file": "A Stitch in Yule Time 2019 She'll Be Belle of the Ball.docx",
+  "houses": [
+    {
+      "name": "A Stitch In Yule Time",
+      "item_type": "house",
+      "sku": "6003111",
+      "description": "The finest elf fabrics are hand-knitted at A Stitch in Yule Time, a premium fabric store found in the heart of the North Pole. Animated, the wheel turns as the needle goes up and down!",
+      "notes": "The finest elf fabrics are hand-knitted at A Stitch in Yule Time, a premium fabric store found in the heart of the North Pole. Animated, the wheel turns as the needle goes up and down!. Animated- sewing wheel rotates and needle move up and down! LED lit. Custom Adapter included",
+      "price": 155.0,
+      "year": 2019,
+      "retired_year": null,
+      "purchased_year": null,
+      "linked_items": [
+        "She’ll Be Belle of the Ball"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "name": "She’ll Be Belle of the Ball",
+      "item_type": "accessory",
+      "sku": "6003123",
+      "description": "Mrs. Claus has all of her scarlet dresses custom-sewn at A Stich in Yule Time. The precise and diligent elf knitters are the only ones in the world she trusts to prepare her fashionable attire for evenings spent with Santa at the Jolly Dance Club.",
+      "notes": "She'll Be Belle Of The Ball. Mrs. Claus has all of her scarlet dresses custom-sewn at A Stich in Yule Time. The precise and diligent elf knitters are the only ones in the world she trusts to prepare her fashionable attire for evenings spent with Santa at the Jolly Dance Club.",
+      "price": 27.5,
+      "year": null,
+      "retired_year": 2021,
+      "purchased_year": null,
+      "linked_items": [
+        "A Stitch In Yule Time"
+      ]
+    }
+  ]
+}

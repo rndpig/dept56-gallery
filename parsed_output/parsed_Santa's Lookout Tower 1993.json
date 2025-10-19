@@ -1,0 +1,18 @@
+{
+  "source_file": "Santa's Lookout Tower 1993.docx",
+  "houses": [
+    {
+      "name": "Santa's Lookout Tower",
+      "item_type": "house",
+      "sku": "56.56294",
+      "description": null,
+      "notes": null,
+      "price": 48.0,
+      "year": 1993,
+      "retired_year": 2000,
+      "purchased_year": null,
+      "linked_items": []
+    }
+  ],
+  "accessories": []
+}

@@ -1,0 +1,50 @@
+{
+  "source_file": "Home for the Holidays 56 Claus Lane 2017 Santa with robe Mrs. Claus with slippers.docx",
+  "houses": [
+    {
+      "name": "Home For Holidays 56 Claus Lane",
+      "item_type": "house",
+      "sku": "4059382",
+      "description": "It's the morning of December 25th, and once again, Santa has completed his long journey around the world. Mrs. Claus greets him with robe and slippers. Look closely through the corner window - there's a tiny Village on top of the mantel!",
+      "notes": "It's the morning of December 25th, and once again, Santa has completed his long journey around the world. Mrs. Claus greets him with robe and slippers. Look closely through the corner window - there's a tiny Village on top of the mantel!",
+      "price": 99.0,
+      "year": 2017,
+      "retired_year": 2017,
+      "purchased_year": null,
+      "linked_items": [
+        "Santa with suit",
+        "Mrs. Clause with slippers and robe"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "name": "Santa with suit",
+      "item_type": "accessory",
+      "sku": null,
+      "description": null,
+      "notes": null,
+      "price": null,
+      "year": null,
+      "retired_year": null,
+      "purchased_year": null,
+      "linked_items": [
+        "Home For Holidays 56 Claus Lane"
+      ]
+    },
+    {
+      "name": "Mrs. Clause with slippers and robe",
+      "item_type": "accessory",
+      "sku": null,
+      "description": null,
+      "notes": null,
+      "price": null,
+      "year": null,
+      "retired_year": null,
+      "purchased_year": null,
+      "linked_items": [
+        "Home For Holidays 56 Claus Lane"
+      ]
+    }
+  ]
+}

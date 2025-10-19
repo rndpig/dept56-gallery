@@ -1,0 +1,41 @@
+{
+  "source_file": "ACC Look at Him Go 2002 Santa's Reindeer Rides No ACC box.docx",
+  "houses": [
+    {
+      "name": "Santa's Reindeer Rides",
+      "item_type": "house",
+      "sku": "56.56748",
+      "description": "Look at Him Go – 2 kids pointing up",
+      "notes": "Set of six. Building. Look at Him Go – 2 kids pointing up. 3 trees. snow",
+      "price": 50.0,
+      "year": 2002,
+      "retired_year": 2002,
+      "purchased_year": null,
+      "collection": null,
+      "series": null,
+      "linked_items": [
+        "Look at Him Go – 2 kids pointing up"
+      ],
+      "image_path": "parsed_output\\images\\Santas_Reindeer_Rides_house.jpg"
+    }
+  ],
+  "accessories": [
+    {
+      "name": "Look at Him Go – 2 kids pointing up",
+      "item_type": "accessory",
+      "sku": null,
+      "description": null,
+      "notes": null,
+      "price": null,
+      "year": null,
+      "retired_year": null,
+      "purchased_year": null,
+      "collection": null,
+      "series": null,
+      "linked_items": [
+        "Santa's Reindeer Rides"
+      ],
+      "image_path": null
+    }
+  ]
+}

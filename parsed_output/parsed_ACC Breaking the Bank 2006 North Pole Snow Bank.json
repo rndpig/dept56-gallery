@@ -1,0 +1,39 @@
+{
+  "source_file": "ACC Breaking the Bank 2006 North Pole Snow Bank.docx",
+  "houses": [
+    {
+      "name": "Snow Bank",
+      "item_type": "house",
+      "sku": "56957",
+      "description": null,
+      "notes": null,
+      "price": null,
+      "year": 2006,
+      "retired_year": 2008,
+      "purchased_year": null,
+      "collection": null,
+      "series": null,
+      "linked_items": [
+        "Breaking the Bank"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "name": "Breaking the Bank",
+      "item_type": "accessory",
+      "sku": "56.57226",
+      "description": null,
+      "notes": "Breaking The Bank",
+      "price": 12.5,
+      "year": 2006,
+      "retired_year": 2008,
+      "purchased_year": null,
+      "collection": null,
+      "series": null,
+      "linked_items": [
+        "Snow Bank"
+      ]
+    }
+  ]
+}

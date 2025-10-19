@@ -1,0 +1,35 @@
+{
+  "source_file": "ACC Hope This Is the Correct Replacement Bulb 2006 Light the Way-Santa's Beacon CLAUS.docx",
+  "houses": [
+    {
+      "name": "Light the Way-Santa’s Beacon",
+      "item_type": "house",
+      "sku": "56.56953",
+      "description": null,
+      "notes": "Represents The \"L\" in Claus. Light House Beacon Rotates",
+      "price": null,
+      "year": 2006,
+      "retired_year": null,
+      "purchased_year": null,
+      "linked_items": [
+        "Hope this is the Correct Replacement Bulb"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "name": "Hope this is the Correct Replacement Bulb",
+      "item_type": "accessory",
+      "sku": "56.57221",
+      "description": "Hope This Is the Correct Replacement Bulb",
+      "notes": "Hope This Is the Correct Replacement Bulb",
+      "price": 12.5,
+      "year": null,
+      "retired_year": 2008,
+      "purchased_year": null,
+      "linked_items": [
+        "Light the Way-Santa’s Beacon"
+      ]
+    }
+  ]
+}

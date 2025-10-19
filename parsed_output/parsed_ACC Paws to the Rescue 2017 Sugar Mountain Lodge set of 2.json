@@ -1,0 +1,35 @@
+{
+  "source_file": "ACC Paws to the Rescue 2017 Sugar Mountain Lodge set of 2.docx",
+  "houses": [
+    {
+      "name": "Sugar Mountain Lodge",
+      "item_type": "house",
+      "sku": null,
+      "description": "It's one of the most fun places at The North Pole – skiing on top of the world at Sugar Mountain. Elves can practice their ski jumping moves right from the roof with the built ski jumping moves right from the roof with the built in ski ramp! Hillside action can be viewed from the upper story balconies.",
+      "notes": "It's one of the most fun places at The North Pole – skiing on top of the world at Sugar Mountain. Elves can practice their ski jumping moves right from the roof with the built ski jumping moves right from the roof with the built in ski ramp! Hillside action can be viewed from the upper story balconies.",
+      "price": null,
+      "year": 2017,
+      "retired_year": 2018,
+      "purchased_year": null,
+      "linked_items": [
+        "Paws to the Rescue set of 2"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "name": "Paws to the Rescue set of 2",
+      "item_type": "accessory",
+      "sku": "4059384",
+      "description": "Off to the rescue is the elf patrol and trusty St. Bernard as the bunny hill proves to be a bit much for one wee elf.",
+      "notes": "Paws To The Rescue. Off to the rescue is the elf patrol and trusty St. Bernard as the bunny hill proves to be a bit much for one wee elf.",
+      "price": 32.5,
+      "year": null,
+      "retired_year": 2018,
+      "purchased_year": null,
+      "linked_items": [
+        "Sugar Mountain Lodge"
+      ]
+    }
+  ]
+}

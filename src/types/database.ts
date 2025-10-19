@@ -1,26 +1,37 @@
 export type House = {
   id: string;
   name: string;
-  year?: number;
-  notes?: string;
+  year?: number; // Released year
+  retired_year?: number; // Year retired from production
+  description?: string; // New field for description
+  sku?: string; // SKU/Item number
+  notes?: string; // Keep for additional notes
   photo_url?: string;
-  purchased_on?: string;
   purchased_year?: number;
+  price?: number; // Purchase or retail price
+  collection?: string; // Collection name from document
+  series?: string; // Series name from document
   created_at?: string;
   updated_at?: string;
-  house_id?: string; // Added for accessories that might reference houses
+  user_id?: string;
 };
 
 export type Accessory = {
   id: string;
   name: string;
-  notes?: string;
+  year?: number; // Released year (accessories can have release year too)
+  retired_year?: number; // Year retired from production
+  description?: string; // New field for description
+  sku?: string; // SKU/Item number
+  notes?: string; // Keep for additional notes
   photo_url?: string;
-  purchased_on?: string;
   purchased_year?: number;
-  house_id?: string; // Foreign key to houses
+  price?: number; // Purchase or retail price
+  collection?: string; // Collection name from document
+  series?: string; // Series name from document
   created_at?: string;
   updated_at?: string;
+  user_id?: string;
 };
 
 export type Collection = {

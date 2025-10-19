@@ -1,0 +1,35 @@
+{
+  "source_file": "Letters to Santa Sorting Station 2006 Sorting Santa'a Letters No ACC box.docx",
+  "houses": [
+    {
+      "name": "Letters To Santa Sorting Station",
+      "item_type": "house",
+      "sku": "56.56792",
+      "description": "- \"Letters To Santa Sorting Station\"",
+      "notes": "- \"Letters To Santa Sorting Station\". Limited to year 2006 production.. Set of 4 Includes:. Building,. 2 Tinsel Trees. Reindeer flies overhead.. Display Anywhere Lighting, 4 AA Batteries.",
+      "price": 80.0,
+      "year": 2006,
+      "retired_year": 2006,
+      "purchased_year": null,
+      "linked_items": [
+        "Sorting Santa's Letters, elf, reindeer good/bad letter bags"
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "name": "Sorting Santa's Letters, elf, reindeer good/bad letter bags",
+      "item_type": "accessory",
+      "sku": null,
+      "description": null,
+      "notes": null,
+      "price": null,
+      "year": null,
+      "retired_year": null,
+      "purchased_year": null,
+      "linked_items": [
+        "Letters To Santa Sorting Station"
+      ]
+    }
+  ]
+}
