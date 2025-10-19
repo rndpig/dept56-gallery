@@ -22,7 +22,11 @@ import type { User } from "@supabase/supabase-js";
 // Whitelist of allowed admin emails
 const ALLOWED_ADMIN_EMAILS = [
   "rndpig@gmail.com",
-  // Add more family member emails here as needed
+  "annadilger@gmail.com",
+  "bday1951@gmail.com",
+  "drdcreek@gmail.com",
+  "ericlday@gmail.com",
+  "amyannday@gmail.com",
 ];
 
 // ------------------------ Utils ------------------------
