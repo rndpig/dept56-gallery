@@ -1717,7 +1717,20 @@ export default function App() {
       setLoading(true);
       setError(null);
       console.log("Starting to fetch data...");
-      const fetchedData = await db.fetchAllData();
+      console.log("Supabase URL:", import.meta.env.VITE_SUPABASE_URL);
+      console.log("Has Supabase Key:", !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+      
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Data fetch timed out after 30 seconds. This may indicate a network issue or the Supabase connection is blocked on mobile.")), 30000);
+      });
+      
+      // Race between fetch and timeout
+      const fetchedData = await Promise.race([
+        db.fetchAllData(),
+        timeoutPromise
+      ]) as Database;
+      
       console.log("Fetched data:", fetchedData);
       console.log("Houses:", fetchedData.houses.length);
       console.log("Accessories:", fetchedData.accessories.length);
@@ -1725,6 +1738,14 @@ export default function App() {
       console.log("Data set successfully!");
     } catch (err: any) {
       console.error("Error loading data:", err);
+      console.error("Error details:", {
+        message: err.message,
+        name: err.name,
+        stack: err.stack,
+        details: err.details,
+        hint: err.hint,
+        code: err.code
+      });
       setError(err.message || "Failed to load data");
     } finally {
       setLoading(false);
@@ -1739,23 +1760,48 @@ export default function App() {
 
   // Check auth state on mount
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setAuthChecked(true);
-    });
+    console.log("Checking auth state...");
+    
+    // Set a timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      if (!authChecked) {
+        console.warn("Auth check timed out after 10 seconds");
+        setAuthChecked(true);
+      }
+    }, 10000);
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        console.log("Auth session:", session ? "exists" : "none");
+        setUser(session?.user ?? null);
+        setAuthChecked(true);
+        clearTimeout(timeout);
+      })
+      .catch((err) => {
+        console.error("Error checking auth:", err);
+        setAuthChecked(true); // Still mark as checked even on error
+        clearTimeout(timeout);
+      });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("Auth state changed:", _event);
       setUser(session?.user ?? null);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (authChecked) {
+      console.log("Auth checked, loading data...");
+      loadData();
+    }
+  }, [authChecked]);
 
   // Auto-collapse filters when scrolling down
   useEffect(() => {
@@ -1808,11 +1854,31 @@ export default function App() {
       <div className="min-h-screen grid place-items-center bg-gradient-to-b from-gray-50 to-white p-4">
         <Card className="p-6 max-w-md">
           <div className="text-center space-y-4">
-            <div className="text-red-600 font-semibold">Error Loading Data</div>
-            <div className="text-sm text-gray-600">{error}</div>
+            <div className="text-red-600 font-semibold text-lg">Error Loading Data</div>
+            <div className="text-sm text-gray-600 whitespace-pre-wrap text-left bg-gray-100 p-3 rounded">{error}</div>
+            
+            {/* Diagnostic Information */}
+            <div className="text-xs text-left space-y-1 text-gray-500 bg-gray-50 p-3 rounded">
+              <div><strong>Browser:</strong> {navigator.userAgent}</div>
+              <div><strong>Connection:</strong> {(navigator as any).connection?.effectiveType || 'Unknown'}</div>
+              <div><strong>Online:</strong> {navigator.onLine ? 'Yes' : 'No'}</div>
+              <div><strong>Supabase URL:</strong> {import.meta.env.VITE_SUPABASE_URL || 'MISSING'}</div>
+              <div><strong>Has API Key:</strong> {import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Yes' : 'NO - THIS IS THE PROBLEM'}</div>
+            </div>
+            
             <Button onClick={loadData} className="bg-red-600 text-white hover:bg-red-700">
               Retry
             </Button>
+            
+            <div className="text-xs text-gray-500 mt-4">
+              If this error persists on mobile, try:
+              <ul className="text-left mt-2 space-y-1 list-disc list-inside">
+                <li>Refreshing the page (hard refresh)</li>
+                <li>Clearing browser cache</li>
+                <li>Using a different browser</li>
+                <li>Checking your network connection</li>
+              </ul>
+            </div>
           </div>
         </Card>
       </div>
@@ -2453,8 +2519,176 @@ export default function App() {
           {/* Collapsible Content */}
           {!filtersCollapsed && (
             <div className="px-3 sm:px-4 pb-3 sm:pb-4 border-t space-y-3">
-            {/* First row: Search, House, Accessory, Collection, Years, Clear */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-3">
+            {/* First row: Browse Collection buttons */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-3">
+              <div className="font-semibold text-gray-700 text-sm sm:text-base">Browse:</div>
+              <Button 
+                onClick={() => {
+                  if (tab === "manage") {
+                    // In Manage tab, always navigate to Browse with houses view
+                    setQ("");
+                    setHouseFilter("");
+                    setAccessoryFilter("");
+                    setCollectionFilter("");
+                    setYearFrom("");
+                    setYearTo("");
+                    setShowDuplicatesOnly(false);
+                    setShowUnlinkedHousesOnly(false);
+                    setShowNoPhotosOnly(false);
+                    setBrowseView("houses");
+                    setTab("browse");
+                  } else if (browseView === "houses") {
+                    setBrowseView("none");
+                  } else {
+                    // Clear all filters when opening full gallery
+                    setQ("");
+                    setHouseFilter("");
+                    setAccessoryFilter("");
+                    setCollectionFilter("");
+                    setYearFrom("");
+                    setYearTo("");
+                    setShowDuplicatesOnly(false);
+                    setShowUnlinkedHousesOnly(false);
+                    setShowNoPhotosOnly(false);
+                    setBrowseView("houses");
+                  }
+                }}
+                className={browseView === "houses" 
+                  ? "bg-red-700 text-white border-red-700" 
+                  : "bg-red-600 text-white border-red-600 hover:bg-red-700"
+                }
+              >
+                {tab === "manage" 
+                  ? `Houses (${data.houses.length})`
+                  : browseView === "houses" 
+                    ? "Hide Houses" 
+                    : `Houses (${data.houses.length})`
+                }
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (tab === "manage") {
+                    // In Manage tab, always navigate to Browse with accessories view
+                    setQ("");
+                    setHouseFilter("");
+                    setAccessoryFilter("");
+                    setCollectionFilter("");
+                    setYearFrom("");
+                    setYearTo("");
+                    setShowDuplicatesOnly(false);
+                    setShowUnlinkedHousesOnly(false);
+                    setShowNoPhotosOnly(false);
+                    setBrowseView("accessories");
+                    setTab("browse");
+                  } else if (browseView === "accessories") {
+                    setBrowseView("none");
+                  } else {
+                    // Clear all filters when opening full gallery
+                    setQ("");
+                    setHouseFilter("");
+                    setAccessoryFilter("");
+                    setCollectionFilter("");
+                    setYearFrom("");
+                    setYearTo("");
+                    setShowDuplicatesOnly(false);
+                    setShowUnlinkedHousesOnly(false);
+                    setShowNoPhotosOnly(false);
+                    setBrowseView("accessories");
+                  }
+                }}
+                className={browseView === "accessories" 
+                  ? "bg-green-700 text-white border-green-700" 
+                  : "bg-green-600 text-white border-green-600 hover:bg-green-700"
+                }
+              >
+                {tab === "manage"
+                  ? `Accessories (${data.accessories.length})`
+                  : browseView === "accessories" 
+                    ? "Hide Accessories" 
+                    : `Accessories (${data.accessories.length})`
+                }
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (tab === "manage") {
+                    // In Manage tab, always navigate to Browse with both view
+                    setQ("");
+                    setHouseFilter("");
+                    setAccessoryFilter("");
+                    setCollectionFilter("");
+                    setYearFrom("");
+                    setYearTo("");
+                    setShowDuplicatesOnly(false);
+                    setShowUnlinkedHousesOnly(false);
+                    setShowNoPhotosOnly(false);
+                    setBrowseView("both");
+                    setTab("browse");
+                  } else if (browseView === "both") {
+                    setBrowseView("none");
+                  } else {
+                    // Clear all filters when opening full gallery
+                    setQ("");
+                    setHouseFilter("");
+                    setAccessoryFilter("");
+                    setCollectionFilter("");
+                    setYearFrom("");
+                    setYearTo("");
+                    setShowDuplicatesOnly(false);
+                    setShowUnlinkedHousesOnly(false);
+                    setShowNoPhotosOnly(false);
+                    setBrowseView("both");
+                  }
+                }}
+                className={browseView === "both" 
+                  ? "bg-gray-700 text-white border-gray-700" 
+                  : "bg-gray-600 text-white border-gray-600 hover:bg-gray-700"
+                }
+              >
+                {tab === "manage"
+                  ? "All"
+                  : browseView === "both" 
+                    ? "Hide All" 
+                    : "All"
+                }
+              </Button>
+              {isAdmin && tab === "manage" && (
+                <>
+                  <Button 
+                    onClick={toggleDuplicateFilter}
+                    className={showDuplicatesOnly 
+                      ? "bg-orange-700 text-white border-orange-700" 
+                      : "bg-orange-600 text-white border-orange-600 hover:bg-orange-700"
+                    }
+                    title={showDuplicatesOnly ? "Show all items" : "Show only duplicates"}
+                  >
+                    {showDuplicatesOnly ? "Show All" : "Show Duplicates"}
+                  </Button>
+                  <Button 
+                    onClick={toggleUnlinkedHousesFilter}
+                    className={showUnlinkedHousesOnly 
+                      ? "bg-blue-700 text-white border-blue-700" 
+                      : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+                    }
+                    title={showUnlinkedHousesOnly ? "Show all houses" : "Show only houses without linked accessories"}
+                  >
+                    {showUnlinkedHousesOnly ? "Show All" : "Unlinked Houses"}
+                  </Button>
+                  <Button 
+                    onClick={toggleNoPhotosFilter}
+                    className={showNoPhotosOnly 
+                      ? "bg-purple-700 text-white border-purple-700" 
+                      : "bg-purple-600 text-white border-purple-600 hover:bg-purple-700"
+                    }
+                    title={showNoPhotosOnly ? "Show all items" : "Show only items without photos"}
+                  >
+                    {showNoPhotosOnly ? "Show All" : "No Photos"}
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {/* Second row: Search and Filter fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-2 border-t">
               <div className="sm:col-span-3">
                 <Field label="Search">
                   <TextInput
@@ -2604,174 +2838,6 @@ export default function App() {
                   Clear
                 </Button>
               </div>
-            </div>
-
-            {/* Second row: Browse Collection buttons */}
-            <div className="flex items-center gap-3 pt-2 border-t">
-              <div className="font-semibold text-gray-700">Browse Collection:</div>
-              <Button 
-                onClick={() => {
-                  if (tab === "manage") {
-                    // In Manage tab, always navigate to Browse with houses view
-                    setQ("");
-                    setHouseFilter("");
-                    setAccessoryFilter("");
-                    setCollectionFilter("");
-                    setYearFrom("");
-                    setYearTo("");
-                    setShowDuplicatesOnly(false);
-                    setShowUnlinkedHousesOnly(false);
-                    setShowNoPhotosOnly(false);
-                    setBrowseView("houses");
-                    setTab("browse");
-                  } else if (browseView === "houses") {
-                    setBrowseView("none");
-                  } else {
-                    // Clear all filters when opening full gallery
-                    setQ("");
-                    setHouseFilter("");
-                    setAccessoryFilter("");
-                    setCollectionFilter("");
-                    setYearFrom("");
-                    setYearTo("");
-                    setShowDuplicatesOnly(false);
-                    setShowUnlinkedHousesOnly(false);
-                    setShowNoPhotosOnly(false);
-                    setBrowseView("houses");
-                  }
-                }}
-                className={browseView === "houses" 
-                  ? "bg-red-700 text-white border-red-700" 
-                  : "bg-red-600 text-white border-red-600 hover:bg-red-700"
-                }
-              >
-                {tab === "manage" 
-                  ? `Houses (${data.houses.length})`
-                  : browseView === "houses" 
-                    ? "Hide Houses" 
-                    : `Houses (${data.houses.length})`
-                }
-              </Button>
-              <Button 
-                onClick={() => {
-                  if (tab === "manage") {
-                    // In Manage tab, always navigate to Browse with accessories view
-                    setQ("");
-                    setHouseFilter("");
-                    setAccessoryFilter("");
-                    setCollectionFilter("");
-                    setYearFrom("");
-                    setYearTo("");
-                    setShowDuplicatesOnly(false);
-                    setShowUnlinkedHousesOnly(false);
-                    setShowNoPhotosOnly(false);
-                    setBrowseView("accessories");
-                    setTab("browse");
-                  } else if (browseView === "accessories") {
-                    setBrowseView("none");
-                  } else {
-                    // Clear all filters when opening full gallery
-                    setQ("");
-                    setHouseFilter("");
-                    setAccessoryFilter("");
-                    setCollectionFilter("");
-                    setYearFrom("");
-                    setYearTo("");
-                    setShowDuplicatesOnly(false);
-                    setShowUnlinkedHousesOnly(false);
-                    setShowNoPhotosOnly(false);
-                    setBrowseView("accessories");
-                  }
-                }}
-                className={browseView === "accessories" 
-                  ? "bg-green-700 text-white border-green-700" 
-                  : "bg-green-600 text-white border-green-600 hover:bg-green-700"
-                }
-              >
-                {tab === "manage"
-                  ? `Accessories (${data.accessories.length})`
-                  : browseView === "accessories" 
-                    ? "Hide Accessories" 
-                    : `Accessories (${data.accessories.length})`
-                }
-              </Button>
-              <Button 
-                onClick={() => {
-                  if (tab === "manage") {
-                    // In Manage tab, always navigate to Browse with both view
-                    setQ("");
-                    setHouseFilter("");
-                    setAccessoryFilter("");
-                    setCollectionFilter("");
-                    setYearFrom("");
-                    setYearTo("");
-                    setShowDuplicatesOnly(false);
-                    setShowUnlinkedHousesOnly(false);
-                    setShowNoPhotosOnly(false);
-                    setBrowseView("both");
-                    setTab("browse");
-                  } else if (browseView === "both") {
-                    setBrowseView("none");
-                  } else {
-                    // Clear all filters when opening full gallery
-                    setQ("");
-                    setHouseFilter("");
-                    setAccessoryFilter("");
-                    setCollectionFilter("");
-                    setYearFrom("");
-                    setYearTo("");
-                    setShowDuplicatesOnly(false);
-                    setShowUnlinkedHousesOnly(false);
-                    setShowNoPhotosOnly(false);
-                    setBrowseView("both");
-                  }
-                }}
-                className={browseView === "both" 
-                  ? "bg-gray-700 text-white border-gray-700" 
-                  : "bg-gray-600 text-white border-gray-600 hover:bg-gray-700"
-                }
-              >
-                {tab === "manage"
-                  ? "View Both"
-                  : browseView === "both" 
-                    ? "Hide All" 
-                    : "View Both"
-                }
-              </Button>
-              {isAdmin && tab === "manage" && (
-                <>
-                  <Button 
-                    onClick={toggleDuplicateFilter}
-                    className={showDuplicatesOnly 
-                      ? "bg-orange-700 text-white border-orange-700" 
-                      : "bg-orange-600 text-white border-orange-600 hover:bg-orange-700"
-                    }
-                    title={showDuplicatesOnly ? "Show all items" : "Show only duplicates"}
-                  >
-                    {showDuplicatesOnly ? "Show All" : "Show Duplicates"}
-                  </Button>
-                  <Button 
-                    onClick={toggleUnlinkedHousesFilter}
-                    className={showUnlinkedHousesOnly 
-                      ? "bg-blue-700 text-white border-blue-700" 
-                      : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
-                    }
-                    title={showUnlinkedHousesOnly ? "Show all houses" : "Show only houses without linked accessories"}
-                  >
-                    {showUnlinkedHousesOnly ? "Show All" : "Unlinked Houses"}
-                  </Button>
-                  <Button 
-                    onClick={toggleNoPhotosFilter}
-                    className={showNoPhotosOnly 
-                      ? "bg-purple-700 text-white border-purple-700" 
-                      : "bg-purple-600 text-white border-purple-600 hover:bg-purple-700"
-                    }
-                    title={showNoPhotosOnly ? "Show all items" : "Show only items without photos"}
-                  >
-                    {showNoPhotosOnly ? "Show All" : "No Photos"}
-                  </Button>
-                </>
-              )}
             </div>
             </div>
           )}
