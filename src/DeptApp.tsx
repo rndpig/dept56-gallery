@@ -2519,9 +2519,9 @@ export default function App() {
           {/* Collapsible Content */}
           {!filtersCollapsed && (
             <div className="px-3 sm:px-4 pb-3 sm:pb-4 border-t space-y-3">
-            {/* First row: Browse Collection buttons */}
+            {/* Navigation Buttons Row */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-3">
-              <div className="font-semibold text-gray-700 text-sm sm:text-base">Browse:</div>
+              <div className="font-semibold text-gray-700 text-sm sm:text-base">🏠 Browse:</div>
               <Button 
                 onClick={() => {
                   if (tab === "manage") {
