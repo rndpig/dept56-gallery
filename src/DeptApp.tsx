@@ -2422,7 +2422,7 @@ export default function App() {
               56
             </span>
             <div className="leading-tight">
-              <div className="font-semibold">Department 56 Browser</div>
+              <div className="font-semibold">Department 56 Browser v2.1</div>
               <div className="text-xs text-gray-500">Cloud-synced collection</div>
             </div>
           </div>
