@@ -2519,8 +2519,9 @@ export default function App() {
           {/* Collapsible Content */}
           {!filtersCollapsed && (
             <div className="px-3 sm:px-4 pb-3 sm:pb-4 border-t space-y-3">
-            {/* Navigation Buttons Row */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-3">
+            
+            {/* 🚨 NAVIGATION FIRST - VERSION 2.0 🚨 */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-3 bg-yellow-100 p-3 rounded">
               <div className="font-semibold text-gray-700 text-sm sm:text-base">🏠 Browse:</div>
               <Button 
                 onClick={() => {
