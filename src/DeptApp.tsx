@@ -2422,7 +2422,7 @@ export default function App() {
               56
             </span>
             <div className="leading-tight">
-              <div className="font-semibold">Department 56 Browser v2.2-FORCE</div>
+              <div className="font-semibold">Department 56 Browser</div>
               <div className="text-xs text-gray-500">Cloud-synced collection</div>
             </div>
           </div>
@@ -2520,8 +2520,8 @@ export default function App() {
           {!filtersCollapsed && (
             <div className="px-3 sm:px-4 pb-3 sm:pb-4 border-t space-y-3">
             
-            {/* 🚨 NAVIGATION FIRST - VERSION 2.0 🚨 */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-3 bg-yellow-100 p-3 rounded">
+            {/* Navigation buttons row */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-3">
               <div className="font-semibold text-gray-700 text-sm sm:text-base">🏠 Browse:</div>
               <Button 
                 onClick={() => {
