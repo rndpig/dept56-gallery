@@ -239,6 +239,18 @@ If you have existing data in the localStorage version:
 
 ## 🐛 Troubleshooting
 
+### Site Won't Load / Network Blocking
+**If the site won't load on your home network:**
+
+Your network's security system (Eero, Circle, Norton, etc.) might be blocking the site. This is a **false positive** - the site is safe!
+
+**Quick Fix:**
+1. Add `rndpig.com` and `supabase.co` to your security system's allowed/trusted sites list
+2. Test on mobile data (not WiFi) to confirm it's a network block
+3. See [FIREWALL_ACCESS_GUIDE.md](FIREWALL_ACCESS_GUIDE.md) for detailed instructions
+
+**Why it happens:** The app uses Supabase cloud services, which some security systems incorrectly flag as suspicious. This is common for new sites using modern cloud infrastructure.
+
 ### "Cannot find module" errors
 Run `npm install` to ensure all dependencies are installed.
 
