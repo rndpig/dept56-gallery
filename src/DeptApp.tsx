@@ -2423,7 +2423,7 @@ export default function App() {
             </span>
             <div className="leading-tight">
               <div className="font-semibold">Department 56 Browser</div>
-              <div className="text-xs text-gray-500">Cloud-synced collection</div>
+              <div className="text-xs text-gray-500">Christmas in the Cloud</div>
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -2522,7 +2522,7 @@ export default function App() {
             
             {/* Navigation buttons row */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-3">
-              <div className="font-semibold text-gray-700 text-sm sm:text-base">🏠 Browse:</div>
+              <div className="font-semibold text-gray-700 text-sm sm:text-base">Browse:</div>
               <Button 
                 onClick={() => {
                   if (tab === "manage") {
