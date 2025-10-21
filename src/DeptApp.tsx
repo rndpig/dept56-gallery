@@ -1812,9 +1812,14 @@ export default function App() {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const currentScrollY = window.scrollY;
+          const scrollDelta = currentScrollY - lastScrollY;
           
-          // If scrolling down and past the header (more than 100px), auto-collapse
-          if (currentScrollY > lastScrollY && currentScrollY > 100 && !filtersCollapsed) {
+          // Only auto-collapse if:
+          // 1. Scrolling down (positive delta)
+          // 2. Scrolled past 150px from top (past header)
+          // 3. Scrolled at least 50px in one movement (intentional scroll)
+          // 4. Filters are currently expanded
+          if (scrollDelta > 50 && currentScrollY > 150 && !filtersCollapsed) {
             setFiltersCollapsed(true);
           }
           
