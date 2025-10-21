@@ -1816,10 +1816,10 @@ export default function App() {
           
           // Only auto-collapse if:
           // 1. Scrolling down (positive delta)
-          // 2. Scrolled past 150px from top (past header)
-          // 3. Scrolled at least 50px in one movement (intentional scroll)
+          // 2. Scrolled past 120px from top (past header)
+          // 3. Scrolled at least 30px in one movement (intentional but not too aggressive)
           // 4. Filters are currently expanded
-          if (scrollDelta > 50 && currentScrollY > 150 && !filtersCollapsed) {
+          if (scrollDelta > 30 && currentScrollY > 120 && !filtersCollapsed) {
             setFiltersCollapsed(true);
           }
           
