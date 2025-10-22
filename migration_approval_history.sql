@@ -46,10 +46,7 @@ CREATE POLICY "Admin users can view all approval history"
   FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM admin_whitelist 
-      WHERE email = (SELECT email FROM auth.users WHERE id = auth.uid())
-    )
+    auth.email() IN (SELECT email FROM admin_whitelist)
   );
 
 -- Admin users can insert approval history
@@ -58,10 +55,7 @@ CREATE POLICY "Admin users can insert approval history"
   FOR INSERT
   TO authenticated
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM admin_whitelist 
-      WHERE email = (SELECT email FROM auth.users WHERE id = auth.uid())
-    )
+    auth.email() IN (SELECT email FROM admin_whitelist)
   );
 
 -- Admin users can update approval history (for undo)
@@ -70,10 +64,7 @@ CREATE POLICY "Admin users can update approval history"
   FOR UPDATE
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM admin_whitelist 
-      WHERE email = (SELECT email FROM auth.users WHERE id = auth.uid())
-    )
+    auth.email() IN (SELECT email FROM admin_whitelist)
   );
 
 COMMENT ON TABLE approval_history IS 'Audit trail and undo capability for approved scraped data';
