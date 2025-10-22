@@ -230,57 +230,39 @@ ALTER TABLE scraping_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE moderation_audit ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scraper_config ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admins can do everything on staging tables
-CREATE POLICY "Admins full access to staged_houses"
+-- Policy: Authenticated users (admins) can do everything on staging tables
+CREATE POLICY "Authenticated users full access to staged_houses"
   ON staged_houses
   FOR ALL
   TO authenticated
-  USING (
-    auth.jwt() ->> 'email' IN (
-      SELECT email FROM admin_users
-    )
-  );
+  USING (auth.uid() IS NOT NULL)
+  WITH CHECK (auth.uid() IS NOT NULL);
 
-CREATE POLICY "Admins full access to staged_accessories"
+CREATE POLICY "Authenticated users full access to staged_accessories"
   ON staged_accessories
   FOR ALL
   TO authenticated
-  USING (
-    auth.jwt() ->> 'email' IN (
-      SELECT email FROM admin_users
-    )
-  );
+  USING (auth.uid() IS NOT NULL)
+  WITH CHECK (auth.uid() IS NOT NULL);
 
--- Policy: Admins can read logs
-CREATE POLICY "Admins read scraping_log"
+-- Policy: Authenticated users can read logs
+CREATE POLICY "Authenticated users read scraping_log"
   ON scraping_log
   FOR SELECT
   TO authenticated
-  USING (
-    auth.jwt() ->> 'email' IN (
-      SELECT email FROM admin_users
-    )
-  );
+  USING (auth.uid() IS NOT NULL);
 
-CREATE POLICY "Admins read moderation_audit"
+CREATE POLICY "Authenticated users read moderation_audit"
   ON moderation_audit
   FOR SELECT
   TO authenticated
-  USING (
-    auth.jwt() ->> 'email' IN (
-      SELECT email FROM admin_users
-    )
-  );
+  USING (auth.uid() IS NOT NULL);
 
-CREATE POLICY "Admins read scraper_config"
+CREATE POLICY "Authenticated users read scraper_config"
   ON scraper_config
   FOR SELECT
   TO authenticated
-  USING (
-    auth.jwt() ->> 'email' IN (
-      SELECT email FROM admin_users
-    )
-  );
+  USING (auth.uid() IS NOT NULL);
 
 -- Policy: Service role (Python scraper) can insert into logs
 CREATE POLICY "Service role insert scraping_log"
