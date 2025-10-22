@@ -49,7 +49,6 @@ CREATE POLICY "Admin users can view all approval history"
     EXISTS (
       SELECT 1 FROM admin_whitelist 
       WHERE email = (SELECT email FROM auth.users WHERE id = auth.uid())
-      AND is_active = true
     )
   );
 
@@ -62,7 +61,6 @@ CREATE POLICY "Admin users can insert approval history"
     EXISTS (
       SELECT 1 FROM admin_whitelist 
       WHERE email = (SELECT email FROM auth.users WHERE id = auth.uid())
-      AND is_active = true
     )
   );
 
@@ -75,7 +73,6 @@ CREATE POLICY "Admin users can update approval history"
     EXISTS (
       SELECT 1 FROM admin_whitelist 
       WHERE email = (SELECT email FROM auth.users WHERE id = auth.uid())
-      AND is_active = true
     )
   );
 
