@@ -1471,7 +1471,7 @@ export default function App() {
   const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
   const [showUnlinkedHousesOnly, setShowUnlinkedHousesOnly] = useState(false);
   const [showNoPhotosOnly, setShowNoPhotosOnly] = useState(false);
-  const [browseView, setBrowseView] = useState<"none" | "houses" | "accessories" | "both">("none");
+  const [browseView, setBrowseView] = useState<"none" | "houses" | "accessories" | "both">("houses");
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   
   // Manage tab - edit existing items
