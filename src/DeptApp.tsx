@@ -1755,12 +1755,6 @@ export default function App() {
 
   // Check if user is an allowed admin
   const isAdmin = useMemo(() => {
-    // DEV ONLY: Bypass auth on localhost
-    if (window.location.hostname === 'localhost') {
-      console.log('🔧 DEV MODE: Admin access granted on localhost');
-      return true;
-    }
-    
     if (!user?.email) return false;
     return ALLOWED_ADMIN_EMAILS.includes(user.email);
   }, [user]);
@@ -2475,17 +2469,10 @@ export default function App() {
               <Button
                 onClick={async () => {
                   try {
-                    // Use current URL for redirect in development, or explicitly set localhost
-                    const redirectUrl = window.location.hostname === 'localhost' 
-                      ? 'http://localhost:3000'
-                      : window.location.origin;
-                    
-                    console.log('OAuth redirect URL:', redirectUrl);
-                    
                     const { error } = await supabase.auth.signInWithOAuth({
                       provider: 'google',
                       options: {
-                        redirectTo: redirectUrl,
+                        redirectTo: window.location.origin,
                       }
                     });
                     if (error) {
@@ -2978,17 +2965,10 @@ export default function App() {
                 <Button
                   onClick={async () => {
                     try {
-                      // Use current URL for redirect in development, or explicitly set localhost
-                      const redirectUrl = window.location.hostname === 'localhost' 
-                        ? 'http://localhost:3000'
-                        : window.location.origin;
-                      
-                      console.log('OAuth redirect URL:', redirectUrl);
-                      
                       const { error } = await supabase.auth.signInWithOAuth({
                         provider: 'google',
                         options: {
-                          redirectTo: redirectUrl,
+                          redirectTo: window.location.origin,
                         }
                       });
                       if (error) {
