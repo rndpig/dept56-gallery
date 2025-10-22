@@ -3,6 +3,7 @@ import { supabase } from "./lib/supabase";
 import * as db from "./lib/database";
 import type { Database, House, Accessory, Collection, Tag, HouseAccessoryLink } from "./types/database";
 import type { User } from "@supabase/supabase-js";
+import { DataReviewTab } from "./DataReviewTab";
 
 /**
  * Department 56 Browser — React app (Supabase Edition)
@@ -1459,7 +1460,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  const [tab, setTab] = useState<"browse" | "manage">("browse");
+  const [tab, setTab] = useState<"browse" | "manage" | "dataReview">("browse");
   const [q, setQ] = useState("");
   const [houseFilter, setHouseFilter] = useState<string>("");
   const [accessoryFilter, setAccessoryFilter] = useState<string>("");
@@ -1754,6 +1755,12 @@ export default function App() {
 
   // Check if user is an allowed admin
   const isAdmin = useMemo(() => {
+    // DEV ONLY: Bypass auth on localhost
+    if (window.location.hostname === 'localhost') {
+      console.log('🔧 DEV MODE: Admin access granted on localhost');
+      return true;
+    }
+    
     if (!user?.email) return false;
     return ALLOWED_ADMIN_EMAILS.includes(user.email);
   }, [user]);
@@ -1834,9 +1841,9 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [filtersCollapsed]);
 
-  // Redirect non-admins away from manage tab
+  // Redirect non-admins away from manage/dataReview tabs
   useEffect(() => {
-    if (tab === "manage" && !isAdmin) {
+    if ((tab === "manage" || tab === "dataReview") && !isAdmin) {
       setTab("browse");
     }
   }, [tab, isAdmin]);
@@ -2439,12 +2446,20 @@ export default function App() {
               Browse
             </Button>
             {isAdmin && (
-              <Button 
-                onClick={() => setTab("manage")} 
-                className={tab === "manage" ? "bg-gray-100 text-gray-900 border-gray-300" : "bg-red-700 text-white border-red-700 hover:bg-red-800"}
-              >
-                Manage
-              </Button>
+              <>
+                <Button 
+                  onClick={() => setTab("manage")} 
+                  className={tab === "manage" ? "bg-gray-100 text-gray-900 border-gray-300" : "bg-red-700 text-white border-red-700 hover:bg-red-800"}
+                >
+                  Manage
+                </Button>
+                <Button 
+                  onClick={() => setTab("dataReview")} 
+                  className={tab === "dataReview" ? "bg-gray-100 text-gray-900 border-gray-300" : "bg-blue-700 text-white border-blue-700 hover:bg-blue-800"}
+                >
+                  Data Review
+                </Button>
+              </>
             )}
             {user ? (
               <Button
@@ -2460,10 +2475,17 @@ export default function App() {
               <Button
                 onClick={async () => {
                   try {
+                    // Use current URL for redirect in development, or explicitly set localhost
+                    const redirectUrl = window.location.hostname === 'localhost' 
+                      ? 'http://localhost:3000'
+                      : window.location.origin;
+                    
+                    console.log('OAuth redirect URL:', redirectUrl);
+                    
                     const { error } = await supabase.auth.signInWithOAuth({
                       provider: 'google',
                       options: {
-                        redirectTo: window.location.origin,
+                        redirectTo: redirectUrl,
                       }
                     });
                     if (error) {
@@ -2956,10 +2978,17 @@ export default function App() {
                 <Button
                   onClick={async () => {
                     try {
+                      // Use current URL for redirect in development, or explicitly set localhost
+                      const redirectUrl = window.location.hostname === 'localhost' 
+                        ? 'http://localhost:3000'
+                        : window.location.origin;
+                      
+                      console.log('OAuth redirect URL:', redirectUrl);
+                      
                       const { error } = await supabase.auth.signInWithOAuth({
                         provider: 'google',
                         options: {
-                          redirectTo: window.location.origin,
+                          redirectTo: redirectUrl,
                         }
                       });
                       if (error) {
@@ -2988,6 +3017,8 @@ export default function App() {
               )}
             </div>
           </Card>
+        ) : tab === "dataReview" ? (
+          <DataReviewTab />
         ) : (
           <div className="space-y-6">
             {/* Check if any special filter is active to show gallery view */}
