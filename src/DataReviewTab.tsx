@@ -38,6 +38,26 @@ interface OriginalHouse {
   photo_url: string | null;
 }
 
+interface ApprovalHistory {
+  id: string;
+  staged_house_id: string;
+  original_house_id: string | null;
+  original_name: string | null;
+  original_year: number | null;
+  original_sku: string | null;
+  original_notes: string | null;
+  original_photo_url: string | null;
+  new_name: string | null;
+  new_year: number | null;
+  new_sku: string | null;
+  new_notes: string | null;
+  new_photo_url: string | null;
+  approved_by: string;
+  approved_at: string;
+  undone_at: string | null;
+  undone_by: string | null;
+}
+
 export function DataReviewTab() {
   const [stagedHouses, setStagedHouses] = useState<StagedHouse[]>([]);
   const [originalHouses, setOriginalHouses] = useState<Map<string, OriginalHouse>>(new Map());
@@ -45,11 +65,29 @@ export function DataReviewTab() {
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [showOnlyChanges, setShowOnlyChanges] = useState(false);
+  const [recentApprovals, setRecentApprovals] = useState<ApprovalHistory[]>([]);
 
   // Load staged houses
   useEffect(() => {
     loadStagedHouses();
+    loadRecentApprovals();
   }, []);
+
+  async function loadRecentApprovals() {
+    try {
+      const { data, error } = await supabase
+        .from("approval_history")
+        .select("*")
+        .is("undone_at", null)
+        .order("approved_at", { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setRecentApprovals(data || []);
+    } catch (err) {
+      console.error("Error loading approval history:", err);
+    }
+  }
 
   async function loadStagedHouses() {
     try {
@@ -104,6 +142,7 @@ export function DataReviewTab() {
     try {
       await applyApproval(item);
       await loadStagedHouses();
+      await loadRecentApprovals();
     } catch (err) {
       console.error("Error approving item:", err);
       alert("Failed to approve item");
@@ -118,25 +157,60 @@ export function DataReviewTab() {
 
   async function applyApproval(item: StagedHouse) {
     if (item.original_house_id) {
-      // Update existing house
-      await supabase
+      // Step 1: Get original values for backup
+      const { data: originalHouse, error: fetchError } = await supabase
+        .from("houses")
+        .select("name, year, sku, notes, photo_url")
+        .eq("id", item.original_house_id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const userEmail = (await supabase.auth.getUser()).data.user?.email || "unknown";
+      const newNotes = item.description ? 
+        `${item.description}\n\nSeries: ${item.discovered_series || 'Unknown'}\nRetired: ${item.retire_year || 'Unknown'}` : 
+        null;
+
+      // Step 2: Create backup in approval_history
+      const { error: historyError } = await supabase
+        .from("approval_history")
+        .insert({
+          staged_house_id: item.id,
+          original_house_id: item.original_house_id,
+          original_name: originalHouse.name,
+          original_year: originalHouse.year,
+          original_sku: originalHouse.sku,
+          original_notes: originalHouse.notes,
+          original_photo_url: originalHouse.photo_url,
+          new_name: item.name,
+          new_year: item.intro_year,
+          new_sku: item.item_number,
+          new_notes: newNotes,
+          new_photo_url: item.primary_image_url,
+          approved_by: userEmail,
+        });
+
+      if (historyError) throw historyError;
+
+      // Step 3: Update existing house
+      const { error: updateError } = await supabase
         .from("houses")
         .update({
           name: item.name,
           year: item.intro_year,
           sku: item.item_number,
-          notes: item.description ? 
-            `${item.description}\n\nSeries: ${item.discovered_series || 'Unknown'}\nRetired: ${item.retire_year || 'Unknown'}` : 
-            null,
+          notes: newNotes,
           photo_url: item.primary_image_url,
         })
         .eq("id", item.original_house_id);
+
+      if (updateError) throw updateError;
     } else {
       // Create new house (if implementing new imports)
       throw new Error("New house import not yet implemented");
     }
 
-    // Mark as approved
+    // Step 4: Mark as approved
     await supabase
       .from("staged_houses")
       .update({
@@ -173,6 +247,7 @@ export function DataReviewTab() {
 
       await loadStagedHouses();
       alert(`Bulk approval complete!\n✅ Approved: ${succeeded}\n❌ Failed: ${failed}`);
+      await loadRecentApprovals();
     } catch (err) {
       console.error("Bulk approval error:", err);
       alert("Bulk approval encountered errors");
@@ -220,6 +295,62 @@ export function DataReviewTab() {
         next.delete(item.id);
         return next;
       });
+    }
+  }
+
+  async function handleUndo(approval: ApprovalHistory) {
+    if (!approval.original_house_id) {
+      alert("Cannot undo: Original house not found");
+      return;
+    }
+
+    if (!confirm(`Undo approval for "${approval.new_name}"?\n\nThis will restore the original values.`)) return;
+
+    try {
+      // Step 1: Restore original values to houses table
+      const { error: restoreError } = await supabase
+        .from("houses")
+        .update({
+          name: approval.original_name,
+          year: approval.original_year,
+          sku: approval.original_sku,
+          notes: approval.original_notes,
+          photo_url: approval.original_photo_url,
+        })
+        .eq("id", approval.original_house_id);
+
+      if (restoreError) throw restoreError;
+
+      // Step 2: Mark approval as undone
+      const userEmail = (await supabase.auth.getUser()).data.user?.email || "unknown";
+      const { error: undoError } = await supabase
+        .from("approval_history")
+        .update({
+          undone_at: new Date().toISOString(),
+          undone_by: userEmail,
+        })
+        .eq("id", approval.id);
+
+      if (undoError) throw undoError;
+
+      // Step 3: Reset staged_houses status back to pending
+      const { error: resetError } = await supabase
+        .from("staged_houses")
+        .update({
+          status: "pending",
+          reviewed_at: null,
+          reviewed_by: null,
+        })
+        .eq("id", approval.staged_house_id);
+
+      if (resetError) throw resetError;
+
+      alert("✅ Changes undone successfully!");
+      await loadStagedHouses();
+      await loadRecentApprovals();
+    } catch (err) {
+      console.error("Error undoing approval:", err);
+      alert("Failed to undo changes");
     }
   }
 
@@ -346,6 +477,49 @@ export function DataReviewTab() {
           <span>Show only fields with changes</span>
         </label>
       </div>
+
+      {/* Recent Approvals - Undo Section */}
+      {recentApprovals.length > 0 && (
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
+                <span className="text-2xl">⏮️</span>
+                Recent Approvals (Undo Available)
+              </h3>
+              <p className="text-blue-700 text-sm mt-1">
+                You can undo recent approvals to restore original data
+              </p>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            {recentApprovals.map(approval => (
+              <div key={approval.id} className="bg-white rounded border border-blue-200 p-3 flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900">{approval.new_name}</div>
+                  <div className="text-sm text-gray-500">
+                    Approved {new Date(approval.approved_at).toLocaleString()} by {approval.approved_by}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    Changed: {approval.original_name !== approval.new_name && 'Name, '}
+                    {approval.original_year !== approval.new_year && 'Year, '}
+                    {approval.original_sku !== approval.new_sku && 'SKU, '}
+                    {approval.original_notes !== approval.new_notes && 'Notes, '}
+                    {approval.original_photo_url !== approval.new_photo_url && 'Photo'}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleUndo(approval)}
+                  className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 font-medium text-sm ml-4"
+                >
+                  ⏮️ Undo
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Consent Agenda - High Confidence Items */}
       {highConfidence.length > 0 && viewMode === 'all' && (
