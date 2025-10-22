@@ -66,6 +66,7 @@ export function DataReviewTab() {
   const [viewMode, setViewMode] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [showOnlyChanges, setShowOnlyChanges] = useState(false);
   const [recentApprovals, setRecentApprovals] = useState<ApprovalHistory[]>([]);
+  const [showRecentApprovals, setShowRecentApprovals] = useState(false);
 
   // Load staged houses
   useEffect(() => {
@@ -530,68 +531,78 @@ export function DataReviewTab() {
         </label>
       </div>
 
-      {/* Recent Approvals - Undo Section */}
+      {/* Recent Approvals - Collapsible Undo Section */}
       {recentApprovals.length > 0 && (
-        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
-                <span className="text-2xl">⏮️</span>
-                Recent Approvals (Undo Available)
-              </h3>
-              <p className="text-blue-700 text-sm mt-1">
-                You can undo recent approvals to restore original data
-              </p>
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            {recentApprovals.map(approval => (
-              <div key={approval.id} className="bg-white rounded border border-blue-200 p-3 flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="font-medium text-gray-900">{approval.new_name}</div>
-                  <div className="text-sm text-gray-500">
-                    Approved {new Date(approval.approved_at).toLocaleString()} by {approval.approved_by}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    Changed: {approval.original_name !== approval.new_name && 'Name, '}
-                    {approval.original_year !== approval.new_year && 'Year, '}
-                    {approval.original_sku !== approval.new_sku && 'SKU, '}
-                    {approval.original_notes !== approval.new_notes && 'Notes, '}
-                    {approval.original_photo_url !== approval.new_photo_url && 'Photo'}
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleUndo(approval)}
-                  className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 font-medium text-sm ml-4"
-                >
-                  ⏮️ Undo
-                </button>
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg mb-6">
+          <button
+            onClick={() => setShowRecentApprovals(!showRecentApprovals)}
+            className="w-full p-4 flex items-center justify-between hover:bg-blue-100 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⏮️</span>
+              <div className="text-left">
+                <h3 className="text-lg font-bold text-blue-900">
+                  Recent Approvals - Undo Available ({recentApprovals.length})
+                </h3>
+                <p className="text-blue-700 text-sm">
+                  Click to {showRecentApprovals ? 'hide' : 'show'} items you can revert (last 24 hours)
+                </p>
               </div>
-            ))}
-          </div>
+            </div>
+            <span className="text-2xl text-blue-700">
+              {showRecentApprovals ? '▼' : '▶'}
+            </span>
+          </button>
+          
+          {showRecentApprovals && (
+            <div className="p-6 pt-0 space-y-2">
+              {recentApprovals.map(approval => (
+                <div key={approval.id} className="bg-white rounded border border-blue-200 p-3 flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">{approval.new_name}</div>
+                    <div className="text-sm text-gray-500">
+                      Approved {new Date(approval.approved_at).toLocaleString()} by {approval.approved_by}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      Changed: {approval.original_name !== approval.new_name && 'Name, '}
+                      {approval.original_year !== approval.new_year && 'Year, '}
+                      {approval.original_sku !== approval.new_sku && 'SKU, '}
+                      {approval.original_notes !== approval.new_notes && 'Notes, '}
+                      {approval.original_photo_url !== approval.new_photo_url && 'Photo'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleUndo(approval)}
+                    className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 font-medium text-sm ml-4"
+                  >
+                    ⏮️ Undo
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Consent Agenda - High Confidence Items */}
+      {/* High Confidence - Bulk Approval Section */}
       {highConfidence.length > 0 && viewMode === 'all' && (
         <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6 mb-6">
           <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-lg font-bold text-green-900 flex items-center gap-2">
                 <span className="text-2xl">⚡</span>
-                Consent Agenda - Auto-Approve Ready
+                Excellent Matches - Bulk Approval Available
               </h3>
               <p className="text-green-700 text-sm mt-1">
-                {highConfidence.length} items scored ≥90% confidence with complete data and appear to be perfect matches
+                {highConfidence.length} {highConfidence.length === 1 ? 'item has' : 'items have'} ≥90% confidence with complete data - these appear to be perfect matches
               </p>
             </div>
             <button
               onClick={() => handleBulkApprove(highConfidence)}
               disabled={processingIds.size > 0}
-              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-md"
+              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-md whitespace-nowrap"
             >
-              ✓ Approve All {highConfidence.length} Items
+              ✓ Approve All {highConfidence.length}
             </button>
           </div>
           
