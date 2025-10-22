@@ -75,10 +75,15 @@ export function DataReviewTab() {
 
   async function loadRecentApprovals() {
     try {
+      // Only show approvals from the last 24 hours
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
       const { data, error } = await supabase
         .from("approval_history")
         .select("*")
         .is("undone_at", null)
+        .gte("approved_at", oneDayAgo.toISOString())
         .order("approved_at", { ascending: false })
         .limit(10);
 
