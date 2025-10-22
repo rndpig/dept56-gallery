@@ -140,12 +140,16 @@ export function DataReviewTab() {
     setProcessingIds(prev => new Set(prev).add(item.id));
 
     try {
+      console.log("🚀 Starting approval for:", item.name);
       await applyApproval(item);
+      console.log("✅ Approval successful, reloading data...");
       await loadStagedHouses();
       await loadRecentApprovals();
-    } catch (err) {
-      console.error("Error approving item:", err);
-      alert("Failed to approve item");
+      alert(`✅ Successfully approved "${item.name}"!`);
+    } catch (err: any) {
+      console.error("❌ Error approving item:", err);
+      const errorMessage = err?.message || err?.toString() || "Unknown error";
+      alert(`❌ Failed to approve item:\n\n${errorMessage}\n\nCheck browser console for details.`);
     } finally {
       setProcessingIds(prev => {
         const next = new Set(prev);
@@ -156,15 +160,28 @@ export function DataReviewTab() {
   }
 
   async function applyApproval(item: StagedHouse) {
+    console.log("🔄 Starting approval process for:", item.name);
+    console.log("📋 Item details:", { 
+      id: item.id, 
+      original_house_id: item.original_house_id,
+      name: item.name,
+      intro_year: item.intro_year 
+    });
+
     if (item.original_house_id) {
       // Step 1: Get original values for backup
+      console.log("📖 Step 1: Fetching original house data...");
       const { data: originalHouse, error: fetchError } = await supabase
         .from("houses")
         .select("name, year, sku, notes, photo_url")
         .eq("id", item.original_house_id)
         .single();
 
-      if (fetchError) throw fetchError;
+      console.log("📖 Original house fetch result:", { data: originalHouse, error: fetchError });
+      if (fetchError) {
+        console.error("❌ Failed to fetch original house:", fetchError);
+        throw fetchError;
+      }
 
       const userEmail = (await supabase.auth.getUser()).data.user?.email || "unknown";
       const newNotes = item.description ? 
@@ -172,53 +189,83 @@ export function DataReviewTab() {
         null;
 
       // Step 2: Create backup in approval_history
-      const { error: historyError } = await supabase
-        .from("approval_history")
-        .insert({
-          staged_house_id: item.id,
-          original_house_id: item.original_house_id,
-          original_name: originalHouse.name,
-          original_year: originalHouse.year,
-          original_sku: originalHouse.sku,
-          original_notes: originalHouse.notes,
-          original_photo_url: originalHouse.photo_url,
-          new_name: item.name,
-          new_year: item.intro_year,
-          new_sku: item.item_number,
-          new_notes: newNotes,
-          new_photo_url: item.primary_image_url,
-          approved_by: userEmail,
-        });
+      console.log("💾 Step 2: Creating backup in approval_history...");
+      const backupData = {
+        staged_house_id: item.id,
+        original_house_id: item.original_house_id,
+        original_name: originalHouse.name,
+        original_year: originalHouse.year,
+        original_sku: originalHouse.sku,
+        original_notes: originalHouse.notes,
+        original_photo_url: originalHouse.photo_url,
+        new_name: item.name,
+        new_year: item.intro_year,
+        new_sku: item.item_number,
+        new_notes: newNotes,
+        new_photo_url: item.primary_image_url,
+        approved_by: userEmail,
+      };
+      console.log("💾 Backup data:", backupData);
 
-      if (historyError) throw historyError;
+      const { data: historyData, error: historyError } = await supabase
+        .from("approval_history")
+        .insert(backupData)
+        .select();
+
+      console.log("💾 Backup result:", { data: historyData, error: historyError });
+      if (historyError) {
+        console.error("❌ Failed to create backup:", historyError);
+        throw new Error(`Backup failed: ${historyError.message}`);
+      }
+      console.log("✅ Backup created successfully!");
 
       // Step 3: Update existing house
-      const { error: updateError } = await supabase
-        .from("houses")
-        .update({
-          name: item.name,
-          year: item.intro_year,
-          sku: item.item_number,
-          notes: newNotes,
-          photo_url: item.primary_image_url,
-        })
-        .eq("id", item.original_house_id);
+      console.log("📝 Step 3: Updating houses table...");
+      const updateData = {
+        name: item.name,
+        year: item.intro_year,
+        sku: item.item_number,
+        notes: newNotes,
+        photo_url: item.primary_image_url,
+      };
+      console.log("📝 Update data:", updateData);
 
-      if (updateError) throw updateError;
+      const { data: updateResult, error: updateError } = await supabase
+        .from("houses")
+        .update(updateData)
+        .eq("id", item.original_house_id)
+        .select();
+
+      console.log("📝 Update result:", { data: updateResult, error: updateError });
+      if (updateError) {
+        console.error("❌ Failed to update house:", updateError);
+        throw new Error(`Update failed: ${updateError.message}`);
+      }
+      console.log("✅ House updated successfully!");
     } else {
       // Create new house (if implementing new imports)
       throw new Error("New house import not yet implemented");
     }
 
     // Step 4: Mark as approved
-    await supabase
+    console.log("✔️ Step 4: Marking staged_houses as approved...");
+    const { data: statusData, error: statusError } = await supabase
       .from("staged_houses")
       .update({
         status: "approved",
         reviewed_at: new Date().toISOString(),
         reviewed_by: (await supabase.auth.getUser()).data.user?.email || "unknown",
       })
-      .eq("id", item.id);
+      .eq("id", item.id)
+      .select();
+
+    console.log("✔️ Status update result:", { data: statusData, error: statusError });
+    if (statusError) {
+      console.error("❌ Failed to update status:", statusError);
+      throw new Error(`Status update failed: ${statusError.message}`);
+    }
+    
+    console.log("🎉 Approval process completed successfully!");
   }
 
   async function handleBulkApprove(items: StagedHouse[]) {
