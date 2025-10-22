@@ -86,6 +86,17 @@ class StagingManager:
             Staged house ID if successful, None otherwise
         """
         try:
+            # Check if this house is already staged (pending)
+            existing = self.supabase.table('staged_houses')\
+                .select('id')\
+                .eq('original_house_id', original_house.get('id'))\
+                .eq('status', 'pending')\
+                .execute()
+            
+            if existing.data and len(existing.data) > 0:
+                print(f"  ⏭️  Already staged (skipping duplicate)")
+                return None
+            
             overall_confidence = self.calculate_overall_confidence(
                 matched_product, match_confidence
             )

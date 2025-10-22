@@ -262,10 +262,12 @@ export function DataReviewTab() {
                   <div>
                     <div className="text-gray-500 font-medium">Introduced</div>
                     <div className="font-semibold">
-                      {original?.year && (
+                      {original?.year && original.year !== item.intro_year && (
                         <span className="text-red-500 line-through mr-2">{original.year}</span>
                       )}
-                      <span className="text-green-600">{item.intro_year || "Unknown"}</span>
+                      <span className={original?.year !== item.intro_year ? "text-green-600" : "text-gray-900"}>
+                        {item.intro_year || "Unknown"}
+                      </span>
                     </div>
                   </div>
                   <div>
