@@ -1675,6 +1675,19 @@ export default function App() {
     return { houseIds, accessoryIds };
   }, [data]);
 
+  // Calculate filter counts for UI display
+  const unlinkedHousesCount = useMemo(() => {
+    if (!data) return 0;
+    return data.houses.filter(h => data.houseAccessoryLinks.filter(l => l.house_id === h.id).length === 0).length;
+  }, [data]);
+
+  const noPhotosCount = useMemo(() => {
+    if (!data) return 0;
+    const noPhotoHouses = data.houses.filter(h => !h.photo_url || h.photo_url.trim() === '').length;
+    const noPhotoAccessories = data.accessories.filter(a => !a.photo_url || a.photo_url.trim() === '').length;
+    return noPhotoHouses + noPhotoAccessories;
+  }, [data]);
+
   const filteredHouses = useMemo(() => {
     if (!data) return [];
     let rows = data.houses.filter(houseMatches);
@@ -2484,34 +2497,36 @@ export default function App() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-4 space-y-6">
-        <Card className="sticky top-[73px] z-30 bg-white shadow-md">
-          {/* Collapse Toggle Bar */}
-          <div 
-            className="flex items-center justify-between p-3 sm:p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-            onClick={() => setFiltersCollapsed(!filtersCollapsed)}
-          >
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-gray-700">
-                {filtersCollapsed ? "Show Filters & Navigation" : "Hide Filters & Navigation"}
-              </span>
-              {filtersCollapsed && (
-                <span className="text-sm text-gray-500">
-                  ({browseView === "houses" ? "Houses" : browseView === "accessories" ? "Accessories" : browseView === "both" ? "Both" : "None"})
-                </span>
-              )}
-            </div>
-            <svg 
-              className={`w-5 h-5 text-gray-600 transition-transform ${filtersCollapsed ? '' : 'rotate-180'}`}
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
+        {tab === "browse" ? (
+          <>
+            <Card className="sticky top-[73px] z-30 bg-white shadow-md">
+              {/* Collapse Toggle Bar */}
+              <div 
+                className="flex items-center justify-between p-3 sm:p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => setFiltersCollapsed(!filtersCollapsed)}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-700">
+                    {filtersCollapsed ? "Show Filters & Navigation" : "Hide Filters & Navigation"}
+                  </span>
+                  {filtersCollapsed && (
+                    <span className="text-sm text-gray-500">
+                      ({browseView === "houses" ? "Houses" : browseView === "accessories" ? "Accessories" : browseView === "both" ? "Both" : "None"})
+                    </span>
+                  )}
+                </div>
+                <svg 
+                  className={`w-5 h-5 text-gray-600 transition-transform ${filtersCollapsed ? '' : 'rotate-180'}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
 
-          {/* Collapsible Content */}
-          {!filtersCollapsed && (
+              {/* Collapsible Content */}
+              {!filtersCollapsed && (
             <div className="px-3 sm:px-4 pb-3 sm:pb-4 border-t space-y-3">
             
             {/* Navigation buttons row */}
@@ -2977,8 +2992,10 @@ export default function App() {
               )}
             </div>
           </Card>
+        ) : null}
+          </>
         ) : tab === "manage" ? (
-          <div className="space-y-6">
+          <>
             {/* Management Header with Logout */}
             <Card className="p-4">
               <div className="flex items-center justify-between mb-4">
@@ -3351,7 +3368,211 @@ export default function App() {
                 </div>
               </Card>
             )}
-          </div>
+            
+            {/* Filter Card for Manage Tab */}
+            <Card className="sticky top-[73px] z-30 bg-white shadow-md">
+              {/* Collapse Toggle Bar */}
+              <div 
+                className="flex items-center justify-between p-3 sm:p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => setFiltersCollapsed(!filtersCollapsed)}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-700">
+                    {filtersCollapsed ? "Show Filters & Navigation" : "Hide Filters & Navigation"}
+                  </span>
+                  {filtersCollapsed && (
+                    <span className="text-sm text-gray-500">
+                      ({browseView === "houses" ? "Houses" : browseView === "accessories" ? "Accessories" : browseView === "both" ? "Both" : "None"})
+                    </span>
+                  )}
+                </div>
+                <svg 
+                  className={`w-5 h-5 text-gray-600 transition-transform ${filtersCollapsed ? '' : 'rotate-180'}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+
+              {/* Collapsible Content */}
+              {!filtersCollapsed && (
+                <div className="border-t">
+                  <div className="p-3 sm:p-4 space-y-4">
+                    {/* Browse View Selector */}
+                    <div className="flex gap-2 justify-center">
+                      <Button
+                        onClick={() => setBrowseView("houses")}
+                        className={browseView === "houses" 
+                          ? "bg-blue-600 text-white border-blue-600" 
+                          : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                        }
+                      >
+                        🏠 Houses
+                      </Button>
+                      <Button
+                        onClick={() => setBrowseView("accessories")}
+                        className={browseView === "accessories" 
+                          ? "bg-green-600 text-white border-green-600" 
+                          : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                        }
+                      >
+                        🎄 Accessories
+                      </Button>
+                      <Button
+                        onClick={() => setBrowseView("both")}
+                        className={browseView === "both" 
+                          ? "bg-purple-600 text-white border-purple-600" 
+                          : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                        }
+                      >
+                        📋 All
+                      </Button>
+                    </div>
+
+                    {/* Search and Filters */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="sm:col-span-3">
+                        <Field label="Search">
+                          <TextInput
+                            value={q}
+                            onChange={(e) => setQ(e.target.value)}
+                            placeholder="Search by name or description..."
+                          />
+                        </Field>
+                      </div>
+                      
+                      {tab === "manage"
+                        ? isAdmin && (
+                          <div className="sm:col-span-3 space-y-3">
+                            {/* Admin quick filters for management */}
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                onClick={toggleDuplicateFilter}
+                                className={showDuplicatesOnly 
+                                  ? "bg-orange-600 text-white border-orange-600" 
+                                  : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                                }
+                              >
+                                🔍 Show Duplicates ({duplicateItemIds.houseIds.size + duplicateItemIds.accessoryIds.size})
+                              </Button>
+                              <Button
+                                onClick={toggleUnlinkedHousesFilter}
+                                className={showUnlinkedHousesOnly 
+                                  ? "bg-blue-600 text-white border-blue-600" 
+                                  : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                                }
+                              >
+                                🔗 Unlinked Houses ({unlinkedHousesCount})
+                              </Button>
+                              <Button
+                                onClick={toggleNoPhotosFilter}
+                                className={showNoPhotosOnly 
+                                  ? "bg-red-600 text-white border-red-600" 
+                                  : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                                }
+                              >
+                                📷 No Photos ({noPhotosCount})
+                              </Button>
+                            </div>
+                          </div>
+                        )
+                        : (
+                          <>
+                            <Field label="Houses">
+                              <TextInput
+                                value={houseFilter}
+                                onChange={(e) => {
+                                  setHouseFilter(e.target.value);
+                                  if (e.target.value && tab === "manage") {
+                                    setTab("browse");
+                                  }
+                                }}
+                                placeholder="Filter houses..."
+                              />
+                            </Field>
+                            <Field label="Accessories">
+                              <TextInput
+                                value={accessoryFilter}
+                                onChange={(e) => {
+                                  setAccessoryFilter(e.target.value);
+                                  if (e.target.value && tab === "manage") {
+                                    setTab("browse");
+                                  }
+                                }}
+                                placeholder="Filter accessories..."
+                              />
+                            </Field>
+                            <Field label="Collection">
+                              <Select
+                                value={collectionFilter}
+                                onChange={(e) => {
+                                  setCollectionFilter(e.target.value);
+                                  if (e.target.value && tab === "manage") {
+                                    setTab("browse");
+                                  }
+                                }}
+                              >
+                                <option value="">All Collections</option>
+                                {data.collections.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.name}
+                                  </option>
+                                ))}
+                              </Select>
+                            </Field>
+                            <Field label="Year From">
+                              <TextInput
+                                value={yearFrom}
+                                onChange={(e) => {
+                                  setYearFrom(e.target.value);
+                                  if (e.target.value && tab === "manage") {
+                                    setTab("browse");
+                                  }
+                                }}
+                                placeholder="1995"
+                              />
+                            </Field>
+                            <Field label="Year To">
+                              <TextInput
+                                value={yearTo}
+                                onChange={(e) => {
+                                  setYearTo(e.target.value);
+                                  if (e.target.value && tab === "manage") {
+                                    setTab("browse");
+                                  }
+                                }}
+                                placeholder="2020"
+                              />
+                            </Field>
+                            <div className="sm:col-span-1 pb-[2px]">
+                              <Button
+                                onClick={() => {
+                                  setQ("");
+                                  setHouseFilter("");
+                                  setAccessoryFilter("");
+                                  setCollectionFilter("");
+                                  setYearFrom("");
+                                  setYearTo("");
+                                  setShowDuplicatesOnly(false);
+                                  setShowUnlinkedHousesOnly(false);
+                                  setShowNoPhotosOnly(false);
+                                }}
+                                className="w-full"
+                              >
+                                Clear
+                              </Button>
+                            </div>
+                          </>
+                        )
+                      }
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </>
         ) : (
           // This is the Browse tab content
           <div className="space-y-6">
