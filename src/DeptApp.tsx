@@ -1504,6 +1504,7 @@ export default function App() {
   const [importStep, setImportStep] = useState<"input" | "results" | "review">("input");
   const [selectedForApproval, setSelectedForApproval] = useState<Set<number>>(new Set());
   const [approvalInProgress, setApprovalInProgress] = useState<boolean>(false);
+  const [purchaseYears, setPurchaseYears] = useState<Record<number, number | undefined>>({}); // Track purchase year for each item
 
   // Refs for scrolling
   const accessoriesSectionRef = useRef<HTMLDivElement>(null);
@@ -2359,6 +2360,7 @@ export default function App() {
     setImportResults(null);
     setImportStep("input");
     setSelectedForApproval(new Set());
+    setPurchaseYears({});
   }
 
   function toggleItemSelection(index: number) {
@@ -2393,12 +2395,12 @@ export default function App() {
           // Use the existing addHouse function
           await addHouse({
             name: result.scraped_data.name,
-            year: result.scraped_data.year || undefined,
-            retired_year: undefined,
+            year: result.scraped_data.intro_year || undefined,
+            retired_year: result.scraped_data.retired_year || undefined,
             description: result.scraped_data.description || '',
             sku: result.scraped_data.sku || '',
             photo_url: result.scraped_data.photo_url || '',
-            purchased_year: undefined,
+            purchased_year: purchaseYears[index] || undefined,
             collection: result.scraped_data.collection || undefined,
           }, [], []); // Empty collections and tags arrays - can be assigned later
 
@@ -3649,13 +3651,18 @@ Christmas at the Park`}
                                     {/* Details section */}
                                     <div className="text-sm space-y-1">
                                       <div><span className="font-medium">Found:</span> {result.scraped_data.name}</div>
-                                      <div><span className="font-medium">Year:</span> {result.scraped_data.year}</div>
+                                      {result.scraped_data.intro_year && (
+                                        <div><span className="font-medium">Introduced:</span> {result.scraped_data.intro_year}</div>
+                                      )}
+                                      {result.scraped_data.retired_year && (
+                                        <div><span className="font-medium">Retired:</span> {result.scraped_data.retired_year}</div>
+                                      )}
                                       {result.scraped_data.sku && (
                                         <div><span className="font-medium">SKU:</span> {result.scraped_data.sku}</div>
                                       )}
                                       <div><span className="font-medium">Collection:</span> {result.scraped_data.collection}</div>
                                       {result.scraped_data.srp && (
-                                        <div><span className="font-medium">SRP:</span> ${result.scraped_data.srp}</div>
+                                        <div><span className="font-medium">Price:</span> ${result.scraped_data.srp}</div>
                                       )}
                                       <div className="text-gray-600">{result.scraped_data.description}</div>
                                     </div>
@@ -3774,8 +3781,11 @@ Christmas at the Park`}
                                             
                                             {/* Details */}
                                             <div className="text-sm space-y-1">
-                                              {result.scraped_data.year && (
-                                                <div><span className="font-medium">Year:</span> {result.scraped_data.year}</div>
+                                              {result.scraped_data.intro_year && (
+                                                <div><span className="font-medium">Introduced:</span> {result.scraped_data.intro_year}</div>
+                                              )}
+                                              {result.scraped_data.retired_year && (
+                                                <div><span className="font-medium">Retired:</span> {result.scraped_data.retired_year}</div>
                                               )}
                                               {result.scraped_data.collection && (
                                                 <div><span className="font-medium">Collection:</span> {result.scraped_data.collection}</div>
@@ -3784,11 +3794,34 @@ Christmas at the Park`}
                                                 <div><span className="font-medium">SKU:</span> {result.scraped_data.sku}</div>
                                               )}
                                               {result.scraped_data.srp && (
-                                                <div><span className="font-medium">SRP:</span> ${result.scraped_data.srp}</div>
+                                                <div><span className="font-medium">Price:</span> ${result.scraped_data.srp}</div>
                                               )}
                                               {result.scraped_data.description && (
                                                 <div className="text-gray-600 mt-1">{result.scraped_data.description}</div>
                                               )}
+                                            </div>
+                                            
+                                            {/* Purchase Year Input */}
+                                            <div className="mt-3 pt-3 border-t border-gray-200">
+                                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                Purchase Year (Optional)
+                                              </label>
+                                              <input
+                                                type="number"
+                                                min="1990"
+                                                max={new Date().getFullYear()}
+                                                placeholder="e.g., 2023"
+                                                value={purchaseYears[actualIndex] || ''}
+                                                onChange={(e) => {
+                                                  const year = e.target.value ? parseInt(e.target.value) : undefined;
+                                                  setPurchaseYears(prev => ({
+                                                    ...prev,
+                                                    [actualIndex]: year
+                                                  }));
+                                                }}
+                                                className="w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                onClick={(e) => e.stopPropagation()} // Prevent toggle when clicking input
+                                              />
                                             </div>
                                           </div>
                                         )}
