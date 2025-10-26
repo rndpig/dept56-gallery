@@ -13,9 +13,13 @@ type SearchIndexHouse = {
   description: string;
   sku: string;
   collection: string;
+  images: string[];
   photo_url: string;
   url: string;
   search_terms: string;
+  srp?: number;
+  intro_year?: number;
+  retired_year?: number;
 };
 
 /**
@@ -2321,7 +2325,11 @@ export default function App() {
                 sku: bestMatch.item.sku,
                 collection: bestMatch.item.collection,
                 photo_url: bestMatch.item.photo_url,
-                url: bestMatch.item.url
+                images: bestMatch.item.images,
+                url: bestMatch.item.url,
+                srp: bestMatch.item.srp,
+                intro_year: bestMatch.item.intro_year,
+                retired_year: bestMatch.item.retired_year
               }
             };
           }
@@ -3613,11 +3621,44 @@ Christmas at the Park`}
                               <div className="flex-1">
                                 <div className="font-medium text-gray-900">{result.input_name}</div>
                                 {result.status === 'found' && result.scraped_data ? (
-                                  <div className="mt-2 text-sm space-y-1">
-                                    <div><span className="font-medium">Found:</span> {result.scraped_data.name}</div>
-                                    <div><span className="font-medium">Year:</span> {result.scraped_data.year}</div>
-                                    <div><span className="font-medium">Collection:</span> {result.scraped_data.collection}</div>
-                                    <div className="text-gray-600">{result.scraped_data.description}</div>
+                                  <div className="mt-2 space-y-3">
+                                    {/* Images section */}
+                                    {result.scraped_data.images && result.scraped_data.images.length > 0 && (
+                                      <div>
+                                        <div className="text-sm font-medium text-gray-700 mb-2">
+                                          Images ({result.scraped_data.images.length})
+                                        </div>
+                                        <div className="flex gap-2 flex-wrap">
+                                          {result.scraped_data.images.map((imageUrl: string, imgIndex: number) => (
+                                            <img
+                                              key={imgIndex}
+                                              src={imageUrl}
+                                              alt={`${result.scraped_data!.name} - Image ${imgIndex + 1}`}
+                                              className="w-20 h-20 object-cover rounded border border-gray-300 hover:border-blue-500 cursor-pointer transition-colors"
+                                              onClick={() => window.open(imageUrl, '_blank')}
+                                              onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.style.display = 'none';
+                                              }}
+                                            />
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Details section */}
+                                    <div className="text-sm space-y-1">
+                                      <div><span className="font-medium">Found:</span> {result.scraped_data.name}</div>
+                                      <div><span className="font-medium">Year:</span> {result.scraped_data.year}</div>
+                                      {result.scraped_data.sku && (
+                                        <div><span className="font-medium">SKU:</span> {result.scraped_data.sku}</div>
+                                      )}
+                                      <div><span className="font-medium">Collection:</span> {result.scraped_data.collection}</div>
+                                      {result.scraped_data.srp && (
+                                        <div><span className="font-medium">SRP:</span> ${result.scraped_data.srp}</div>
+                                      )}
+                                      <div className="text-gray-600">{result.scraped_data.description}</div>
+                                    </div>
                                   </div>
                                 ) : (
                                   <div className="mt-1 text-sm text-red-600">No match found</div>
@@ -3707,19 +3748,48 @@ Christmas at the Park`}
                                           Original search: {result.input_name}
                                         </div>
                                         {result.scraped_data && (
-                                          <div className="mt-2 space-y-1 text-sm">
-                                            {result.scraped_data.year && (
-                                              <div><span className="font-medium">Year:</span> {result.scraped_data.year}</div>
+                                          <div className="mt-2 space-y-2">
+                                            {/* Image preview */}
+                                            {result.scraped_data.images && result.scraped_data.images.length > 0 && (
+                                              <div>
+                                                <div className="text-xs font-medium text-gray-600 mb-1">
+                                                  Primary Image {result.scraped_data.images.length > 1 && `(${result.scraped_data.images.length} total available)`}
+                                                </div>
+                                                <img
+                                                  src={result.scraped_data.images[0]}
+                                                  alt={result.scraped_data.name}
+                                                  className="w-16 h-16 object-cover rounded border border-gray-300"
+                                                  onError={(e) => {
+                                                    const target = e.target as HTMLImageElement;
+                                                    target.style.display = 'none';
+                                                  }}
+                                                />
+                                                {result.scraped_data.images.length > 1 && (
+                                                  <div className="text-xs text-blue-600 mt-1">
+                                                    + {result.scraped_data.images.length - 1} more image{result.scraped_data.images.length > 2 ? 's' : ''} available
+                                                  </div>
+                                                )}
+                                              </div>
                                             )}
-                                            {result.scraped_data.collection && (
-                                              <div><span className="font-medium">Collection:</span> {result.scraped_data.collection}</div>
-                                            )}
-                                            {result.scraped_data.sku && (
-                                              <div><span className="font-medium">SKU:</span> {result.scraped_data.sku}</div>
-                                            )}
-                                            {result.scraped_data.description && (
-                                              <div className="text-gray-600 mt-1">{result.scraped_data.description}</div>
-                                            )}
+                                            
+                                            {/* Details */}
+                                            <div className="text-sm space-y-1">
+                                              {result.scraped_data.year && (
+                                                <div><span className="font-medium">Year:</span> {result.scraped_data.year}</div>
+                                              )}
+                                              {result.scraped_data.collection && (
+                                                <div><span className="font-medium">Collection:</span> {result.scraped_data.collection}</div>
+                                              )}
+                                              {result.scraped_data.sku && (
+                                                <div><span className="font-medium">SKU:</span> {result.scraped_data.sku}</div>
+                                              )}
+                                              {result.scraped_data.srp && (
+                                                <div><span className="font-medium">SRP:</span> ${result.scraped_data.srp}</div>
+                                              )}
+                                              {result.scraped_data.description && (
+                                                <div className="text-gray-600 mt-1">{result.scraped_data.description}</div>
+                                              )}
+                                            </div>
                                           </div>
                                         )}
                                       </div>

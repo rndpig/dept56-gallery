@@ -50,11 +50,15 @@ def generate_search_index():
                 'name': name,
                 'year': product.get('intro_year'),
                 'description': product.get('description', ''),
-                'sku': product.get('item_number', ''),
-                'collection': product.get('discovered_collection', ''),
-                'photo_url': product.get('primary_image_url', ''),
+                'sku': product.get('item_number', '') or product.get('sku', ''),
+                'collection': product.get('discovered_collection', '') or product.get('series', ''),
+                'images': product.get('images', []),  # Get all images
+                'photo_url': product.get('images', [None])[0] if product.get('images') else '',  # Primary image
                 'url': url,
-                'search_terms': name.lower()  # For client-side fuzzy search
+                'search_terms': name.lower(),  # For client-side fuzzy search
+                'srp': product.get('srp'),  # Suggested retail price
+                'intro_year': product.get('intro_year'),
+                'retired_year': product.get('retired_year')
             }
             search_index.append(search_item)
     
