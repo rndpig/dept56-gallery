@@ -1485,6 +1485,8 @@ export default function App() {
   const [importResults, setImportResults] = useState<any[] | null>(null);
   const [importLoading, setImportLoading] = useState<boolean>(false);
   const [importStep, setImportStep] = useState<"input" | "results" | "review">("input");
+  const [selectedForApproval, setSelectedForApproval] = useState<Set<number>>(new Set());
+  const [approvalInProgress, setApprovalInProgress] = useState<boolean>(false);
 
   // Refs for scrolling
   const accessoriesSectionRef = useRef<HTMLDivElement>(null);
@@ -2331,6 +2333,81 @@ export default function App() {
     setImportText("");
     setImportResults(null);
     setImportStep("input");
+    setSelectedForApproval(new Set());
+  }
+
+  function toggleItemSelection(index: number) {
+    const newSelection = new Set(selectedForApproval);
+    if (newSelection.has(index)) {
+      newSelection.delete(index);
+    } else {
+      newSelection.add(index);
+    }
+    setSelectedForApproval(newSelection);
+  }
+
+  async function approveSelectedItems() {
+    if (!importResults || selectedForApproval.size === 0) {
+      alert("No items selected for approval");
+      return;
+    }
+
+    setApprovalInProgress(true);
+    const successfulAdds: string[] = [];
+    const failedAdds: string[] = [];
+
+    try {
+      for (const index of selectedForApproval) {
+        const result = importResults[index];
+        if (!result || result.status !== 'found' || !result.scraped_data) {
+          failedAdds.push(result?.input_name || `Item ${index}`);
+          continue;
+        }
+
+        try {
+          // Use the existing addHouse function
+          await addHouse({
+            name: result.scraped_data.name,
+            year: result.scraped_data.year || undefined,
+            retired_year: undefined,
+            description: result.scraped_data.description || '',
+            sku: result.scraped_data.sku || '',
+            photo_url: result.scraped_data.photo_url || '',
+            purchased_year: undefined,
+            collection: result.scraped_data.collection || undefined,
+          }, [], []); // Empty collections and tags arrays - can be assigned later
+
+          successfulAdds.push(result.scraped_data.name);
+        } catch (error) {
+          console.error(`Failed to add ${result.scraped_data.name}:`, error);
+          failedAdds.push(result.scraped_data.name);
+        }
+      }
+
+      // Show results
+      let message = '';
+      if (successfulAdds.length > 0) {
+        message += `✅ Successfully added ${successfulAdds.length} house(s):\n${successfulAdds.join(', ')}\n\n`;
+      }
+      if (failedAdds.length > 0) {
+        message += `❌ Failed to add ${failedAdds.length} house(s):\n${failedAdds.join(', ')}`;
+      }
+
+      alert(message);
+
+      if (successfulAdds.length > 0) {
+        // Reset the import workflow on success
+        resetImport();
+        // Reload data to show new houses
+        await loadData();
+      }
+
+    } catch (error) {
+      console.error('Approval process error:', error);
+      alert('Error during approval process. Please try again.');
+    } finally {
+      setApprovalInProgress(false);
+    }
   }
 
   // UI cards
@@ -3554,20 +3631,132 @@ Christmas at the Park`}
                         <div>
                           <h3 className="font-semibold text-gray-900">Review & Approve</h3>
                           <div className="text-sm text-gray-600">
-                            Select which houses to add to your collection
+                            Select houses to add to your collection ({selectedForApproval.size} selected)
                           </div>
                         </div>
-                        <Button
-                          onClick={() => setImportStep("results")}
-                          className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
-                        >
-                          ← Back to Results
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => setImportStep("results")}
+                            className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                          >
+                            ← Back to Results
+                          </Button>
+                          <Button
+                            onClick={approveSelectedItems}
+                            disabled={selectedForApproval.size === 0 || approvalInProgress}
+                            className="bg-green-600 text-white border-green-600 hover:bg-green-700 disabled:bg-gray-300"
+                          >
+                            {approvalInProgress ? "Adding..." : `Add ${selectedForApproval.size} Houses`}
+                          </Button>
+                        </div>
                       </div>
-                      
-                      <div className="text-center py-8 text-gray-500">
-                        <div className="text-4xl mb-2">🚧</div>
-                        <div>Review & approval functionality coming next...</div>
+
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {importResults
+                          .filter(result => result.status === 'found')
+                          .map((result) => {
+                            const actualIndex = importResults.findIndex(r => r === result);
+                            const isSelected = selectedForApproval.has(actualIndex);
+                            
+                            return (
+                              <Card key={actualIndex} className={`p-4 cursor-pointer transition-all ${
+                                isSelected ? 'ring-2 ring-green-500 bg-green-50' : 'hover:bg-gray-50'
+                              }`}>
+                                <div 
+                                  className="flex items-start gap-4"
+                                  onClick={() => toggleItemSelection(actualIndex)}
+                                >
+                                  <div className="flex-shrink-0 pt-1">
+                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                                      isSelected 
+                                        ? 'bg-green-600 border-green-600' 
+                                        : 'border-gray-300'
+                                    }`}>
+                                      {isSelected && (
+                                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                        </svg>
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <div className="font-medium text-gray-900">
+                                          {result.scraped_data?.name || result.input_name}
+                                        </div>
+                                        <div className="text-sm text-gray-500 mt-1">
+                                          Original search: {result.input_name}
+                                        </div>
+                                        {result.scraped_data && (
+                                          <div className="mt-2 space-y-1 text-sm">
+                                            {result.scraped_data.year && (
+                                              <div><span className="font-medium">Year:</span> {result.scraped_data.year}</div>
+                                            )}
+                                            {result.scraped_data.collection && (
+                                              <div><span className="font-medium">Collection:</span> {result.scraped_data.collection}</div>
+                                            )}
+                                            {result.scraped_data.sku && (
+                                              <div><span className="font-medium">SKU:</span> {result.scraped_data.sku}</div>
+                                            )}
+                                            {result.scraped_data.description && (
+                                              <div className="text-gray-600 mt-1">{result.scraped_data.description}</div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      <div className="ml-4 text-right flex-shrink-0">
+                                        <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                          ✓ {Math.round(result.confidence * 100)}%
+                                        </div>
+                                        {result.source && (
+                                          <div className="text-xs text-gray-500 mt-1">
+                                            from {result.source}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </Card>
+                            );
+                          })}
+                      </div>
+
+                      {importResults.filter(r => r.status === 'found').length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                          <div className="text-2xl mb-2">�</div>
+                          <div>No houses found to review. Try different search terms.</div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between pt-4 border-t">
+                        <div className="text-sm text-gray-600">
+                          {importResults.filter(r => r.status === 'found').length} house(s) available for import
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => {
+                              const foundIndices = new Set(
+                                importResults
+                                  .map((result, index) => result.status === 'found' ? index : -1)
+                                  .filter(index => index !== -1)
+                              );
+                              setSelectedForApproval(foundIndices);
+                            }}
+                            className="bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200"
+                          >
+                            Select All
+                          </Button>
+                          <Button
+                            onClick={() => setSelectedForApproval(new Set())}
+                            className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                          >
+                            Clear Selection
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}
