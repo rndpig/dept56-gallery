@@ -51,30 +51,31 @@ def bulk_search_houses(house_names: list) -> dict:
         best_confidence = 0
         best_source = None
         
-        for source, matches in search_result.items():
-            if matches and isinstance(matches, list) and len(matches) > 0:
-                match = matches[0]  # Take the best match from this source
-                confidence = match.get('confidence', 0)
+        for source, result in search_result.items():
+            if result and isinstance(result, dict):
+                # Each result is a dict with 'product', 'score', 'url'
+                confidence = result.get('score', 0) / 100.0  # Convert score to confidence 0-1
                 if confidence > best_confidence:
                     best_confidence = confidence
-                    best_match = match
+                    best_match = result
                     best_source = source
         
         # Structure the result
         if best_match and best_confidence > 0.5:  # Minimum confidence threshold
+            product = best_match['product']  # Extract the ProductData object
             result = {
                 "input_name": house_name,
                 "status": "found",
                 "confidence": best_confidence,
                 "source": best_source,
                 "scraped_data": {
-                    "name": best_match.get('name', house_name),
-                    "year": best_match.get('year'),
-                    "description": best_match.get('description', ''),
-                    "sku": best_match.get('item_number', ''),
-                    "collection": best_match.get('collection', ''),
-                    "photo_url": best_match.get('image_url', ''),
-                    "url": best_match.get('url', '')
+                    "name": product.name,
+                    "year": product.intro_year,
+                    "description": product.description,
+                    "sku": product.item_number,
+                    "collection": product.discovered_collection,
+                    "photo_url": product.primary_image_url,
+                    "url": product.source_url
                 }
             }
         else:

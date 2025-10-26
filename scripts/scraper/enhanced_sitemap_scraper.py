@@ -134,7 +134,8 @@ class SitemapBasedScraper:
             index_file = config['index_file']
             
             # Check if we can use the existing product_index.json from working scraper
-            existing_index_path = 'scripts/scraper/product_index.json'
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            existing_index_path = os.path.join(script_dir, 'product_index.json')
             if not force_rebuild and os.path.exists(existing_index_path):
                 try:
                     print(f"📂 Loading existing product index...")
