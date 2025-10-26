@@ -4,6 +4,19 @@ import * as db from "./lib/database";
 import type { Database, House, Accessory, Collection, Tag, HouseAccessoryLink } from "./types/database";
 import type { User } from "@supabase/supabase-js";
 import { DataReviewTab } from "./DataReviewTab";
+import Fuse from 'fuse.js';
+
+// Type for search index items
+type SearchIndexHouse = {
+  name: string;
+  year: number | null;
+  description: string;
+  sku: string;
+  collection: string;
+  photo_url: string;
+  url: string;
+  search_terms: string;
+};
 
 /**
  * Department 56 Browser — React app (Supabase Edition)
@@ -2270,60 +2283,64 @@ export default function App() {
         return;
       }
 
-      // Call the Python scraper script
-      const response = await fetch('/api/import-houses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ house_names: houseNames })
+      // Load the pre-generated search index
+      const response = await fetch('/house_search_index.json');
+      if (!response.ok) {
+        throw new Error('Failed to load search index');
+      }
+      
+      const searchData = await response.json();
+      const houses = searchData.houses;
+
+      // Set up Fuse.js for fuzzy searching
+      const fuse = new Fuse<SearchIndexHouse>(houses, {
+        keys: ['name', 'collection'],
+        threshold: 0.4, // 0.6 similarity required (lower = more strict)
+        includeScore: true,
+        minMatchCharLength: 3,
+        ignoreLocation: true
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const results = houseNames.map(houseName => {
+        const searchResults = fuse.search(houseName);
+        
+        if (searchResults.length > 0) {
+          const bestMatch = searchResults[0];
+          const confidence = Math.max(0, 1 - bestMatch.score!); // Convert Fuse score to confidence
+          
+          if (confidence > 0.5) { // Minimum confidence threshold
+            return {
+              input_name: houseName,
+              status: 'found' as const,
+              confidence: confidence,
+              source: 'search_index',
+              scraped_data: {
+                name: bestMatch.item.name,
+                year: bestMatch.item.year,
+                description: bestMatch.item.description,
+                sku: bestMatch.item.sku,
+                collection: bestMatch.item.collection,
+                photo_url: bestMatch.item.photo_url,
+                url: bestMatch.item.url
+              }
+            };
+          }
+        }
+        
+        return {
+          input_name: houseName,
+          status: 'not_found' as const,
+          confidence: 0,
+          source: null,
+          scraped_data: null
+        };
+      });
 
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Unknown error occurred');
-      }
-
-      setImportResults(data.results);
+      setImportResults(results);
       setImportStep("results");
     } catch (error) {
       console.error('Import error:', error);
-      
-      // For development/testing, fall back to mock data if API is not available
-      if (error instanceof Error && error.message.includes('Failed to fetch')) {
-        console.log('API not available, using mock data for testing...');
-        
-        const houseNames = importText
-          .split('\n')
-          .map(line => line.trim())
-          .filter(line => line.length > 0);
-
-        const mockResults = houseNames.map((name, index) => ({
-          input_name: name,
-          status: Math.random() > 0.3 ? 'found' : 'not_found',
-          confidence: Math.random() * 0.4 + 0.6, // 0.6-1.0
-          source: 'mock',
-          scraped_data: Math.random() > 0.3 ? {
-            name: name + (Math.random() > 0.5 ? ' Village' : ' House'),
-            year: 1990 + Math.floor(Math.random() * 30),
-            description: `Beautiful Department 56 piece featuring ${name.toLowerCase()}`,
-            sku: `${Math.floor(Math.random() * 90000) + 10000}`,
-            collection: Math.random() > 0.5 ? 'Christmas Village' : 'Holiday Collection',
-            photo_url: `https://example.com/photo${index}.jpg`,
-            url: `https://example.com/product${index}`
-          } : null
-        }));
-
-        setImportResults(mockResults);
-        setImportStep("results");
-      } else {
-        alert('Error processing import. Please try again.');
-      }
+      alert('Error processing import. Please try again.');
     } finally {
       setImportLoading(false);
     }
