@@ -1460,7 +1460,8 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  const [tab, setTab] = useState<"browse" | "manage" | "dataReview">("browse");
+  const [tab, setTab] = useState<"browse" | "manage">("browse");
+  const [manageView, setManageView] = useState<"edit" | "dataReview" | "import">("edit");
   const [q, setQ] = useState("");
   const [houseFilter, setHouseFilter] = useState<string>("");
   const [accessoryFilter, setAccessoryFilter] = useState<string>("");
@@ -1835,9 +1836,9 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [filtersCollapsed]);
 
-  // Redirect non-admins away from manage/dataReview tabs
+  // Redirect non-admins away from manage tab
   useEffect(() => {
-    if ((tab === "manage" || tab === "dataReview") && !isAdmin) {
+    if (tab === "manage" && !isAdmin) {
       setTab("browse");
     }
   }, [tab, isAdmin]);
@@ -2439,35 +2440,17 @@ export default function App() {
             >
               Browse
             </Button>
-            {isAdmin && (
-              <>
-                <Button 
-                  onClick={() => setTab("manage")} 
-                  className={tab === "manage" ? "bg-gray-100 text-gray-900 border-gray-300" : "bg-red-700 text-white border-red-700 hover:bg-red-800"}
-                >
-                  Manage
-                </Button>
-                <Button 
-                  onClick={() => setTab("dataReview")} 
-                  className={tab === "dataReview" ? "bg-gray-100 text-gray-900 border-gray-300" : "bg-blue-700 text-white border-blue-700 hover:bg-blue-800"}
-                >
-                  Data Review
-                </Button>
-              </>
-            )}
-            {user ? (
-              <Button
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  setTab("browse"); // Return to browse on logout
-                }}
-                className="ml-2 text-xs bg-gray-200 text-gray-700 border-gray-300 hover:bg-gray-300"
-              >
-                Logout
-              </Button>
-            ) : (
-              <Button
-                onClick={async () => {
+            <Button 
+              onClick={async () => {
+                if (isAdmin) {
+                  // User is already authenticated and is admin, go to manage
+                  setTab("manage");
+                  setManageView("edit"); // Default to edit view
+                } else if (user && !isAdmin) {
+                  // User is authenticated but not admin, show message
+                  alert("Admin access required. Only whitelisted accounts can manage the collection.");
+                } else {
+                  // User not authenticated, trigger Google sign-in
                   try {
                     const { error } = await supabase.auth.signInWithOAuth({
                       provider: 'google',
@@ -2487,17 +2470,14 @@ export default function App() {
                     console.error('Sign in error:', err);
                     alert('Unable to sign in. Please check the setup guide in GOOGLE_AUTH_SETUP.md');
                   }
-                }}
-                className="ml-2 text-sm bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
-              >
-                <svg className="w-4 h-4 mr-2 inline-block" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                </svg>
-                Sign in with Google
-              </Button>
+                }
+              }} 
+              className={tab === "manage" ? "bg-gray-100 text-gray-900 border-gray-300" : "bg-red-700 text-white border-red-700 hover:bg-red-800"}
+            >
+              Manage
+            </Button>
+            {user && !isAdmin && (
+              <span className="text-xs text-gray-500 ml-2">Signed in as {user.email}</span>
             )}
           </div>
         </div>
@@ -2997,9 +2977,383 @@ export default function App() {
               )}
             </div>
           </Card>
-        ) : tab === "dataReview" ? (
-          <DataReviewTab />
+        ) : tab === "manage" ? (
+          <div className="space-y-6">
+            {/* Management Header with Logout */}
+            <Card className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Management Dashboard</h2>
+                  <p className="text-sm text-gray-600">Manage your Department 56 collection</p>
+                </div>
+                <Button
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    setTab("browse"); // Return to browse on logout
+                  }}
+                  className="bg-gray-200 text-gray-700 border-gray-300 hover:bg-gray-300"
+                >
+                  Logout
+                </Button>
+              </div>
+              
+              {/* Management Function Buttons */}
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={() => setManageView("edit")}
+                  className={manageView === "edit" 
+                    ? "bg-blue-600 text-white border-blue-600" 
+                    : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                  }
+                >
+                  📝 Edit Items
+                </Button>
+                <Button
+                  onClick={() => setManageView("dataReview")}
+                  className={manageView === "dataReview" 
+                    ? "bg-green-600 text-white border-green-600" 
+                    : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                  }
+                >
+                  🔍 Data Review
+                </Button>
+                <Button
+                  onClick={() => setManageView("import")}
+                  className={manageView === "import" 
+                    ? "bg-purple-600 text-white border-purple-600" 
+                    : "bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed"
+                  }
+                  disabled={true}
+                >
+                  📥 Import Houses (Coming Soon)
+                </Button>
+              </div>
+            </Card>
+
+            {/* Conditional Content Based on Selected View */}
+            {manageView === "edit" && (
+              <Card className="p-4">
+                <SectionTitle>Edit Items</SectionTitle>
+                <div className="pt-4">
+                  {/* All the existing manage tab content starts here */}
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    {/* Left column: House editing */}
+                    <div className="space-y-6">
+                      <Card className="p-4">
+                        <SectionTitle>Edit / Add House</SectionTitle>
+                        <div className="pt-3 space-y-3">
+                          <Field label="Load Existing House to Edit (optional)">
+                            <Select 
+                              value={editHouseId}
+                              onChange={(e) => setEditHouseId(e.target.value)}
+                            >
+                              <option value="">-- Create New House --</option>
+                              {filteredHouses
+                                .map((h) => (
+                                  <option key={h.id} value={h.id}>
+                                    {h.name} {h.year ? `(${h.year})` : ''}
+                                  </option>
+                                ))}
+                            </Select>
+                          </Field>
+                          <HouseForm 
+                            data={data} 
+                            onSave={addHouse}
+                            onDelete={deleteHouse}
+                            onMoveToAccessory={moveHouseToAccessory}
+                            initial={editHouseId ? (() => {
+                              const house = data.houses.find(h => h.id === editHouseId);
+                              if (!house) return undefined;
+                              const collectionIds = data.houseCollections
+                                .filter(hc => hc.house_id === house.id)
+                                .map(hc => hc.collection_id);
+                              const tagIds = data.houseTags
+                                .filter(ht => ht.house_id === house.id)
+                                .map(ht => ht.tag_id);
+                              return { ...house, collectionIds, tagIds };
+                            })() : undefined}
+                          />
+                        </div>
+                      </Card>
+
+                      {/* Linked accessories display for selected house */}
+                      {(() => {
+                        if (!editHouseId) return null;
+                        
+                        const linkedAccessories = data.houseAccessoryLinks
+                          .filter(link => link.house_id === editHouseId)
+                          .map(link => data.accessories.find(a => a.id === link.accessory_id))
+                          .filter(Boolean) as Accessory[];
+                        
+                        if (linkedAccessories.length === 0) {
+                          return (
+                            <Card className="p-4">
+                              <h3 className="text-sm font-semibold text-gray-900 mb-3">Linked Accessories</h3>
+                              <p className="text-sm text-gray-500">No accessories linked to this house yet.</p>
+                            </Card>
+                          );
+                        }
+                        
+                        return (
+                          <Card className="p-4">
+                            <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                              Linked Accessories ({linkedAccessories.length})
+                            </h3>
+                            <div className="space-y-3">
+                              {linkedAccessories.map((accessory) => (
+                                <div 
+                                  key={accessory.id} 
+                                  className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-indigo-300 transition"
+                                >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      {accessory.photo_url && (
+                                        <img 
+                                          src={accessory.photo_url} 
+                                          alt={accessory.name}
+                                          className="w-10 h-10 object-cover rounded"
+                                        />
+                                      )}
+                                      <span className="font-medium text-gray-900">{accessory.name}</span>
+                                    </div>
+                                    <Button
+                                      onClick={() => {
+                                        setEditAccessoryId(accessory.id);
+                                        // Scroll to the accessory form after a brief delay
+                                        setTimeout(() => {
+                                          accessoryFormRef.current?.scrollIntoView({ 
+                                            behavior: 'smooth', 
+                                            block: 'start' 
+                                          });
+                                        }, 100);
+                                      }}
+                                      className="text-xs px-2 py-1"
+                                    >
+                                      Edit
+                                    </Button>
+                                  </div>
+                                  {accessory.notes && (
+                                    <div className="text-xs text-gray-600">
+                                      <p>{accessory.notes}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </Card>
+                        );
+                      })()}
+
+                      {/* Accessory form - always visible */}
+                      <div ref={accessoryFormRef}>
+                        <Card className="p-4">
+                          <SectionTitle>Edit / Add Accessory</SectionTitle>
+                          <div className="pt-3 space-y-3">
+                            <Field label="Load Existing Accessory to Edit (optional)">
+                              <Select 
+                                value={editAccessoryId}
+                                onChange={(e) => setEditAccessoryId(e.target.value)}
+                              >
+                                <option value="">-- Create New Accessory --</option>
+                                {filteredAccessories
+                                  .map((a) => (
+                                    <option key={a.id} value={a.id}>
+                                      {a.name}
+                                    </option>
+                                  ))}
+                              </Select>
+                            </Field>
+                            <AccessoryForm 
+                              data={data} 
+                              onSave={addAccessory}
+                              onDelete={deleteAccessory}
+                              onMoveToHouse={moveAccessoryToHouse}
+                              onLink={addLink}
+                              initial={editAccessoryId ? (() => {
+                                const accessory = data.accessories.find(a => a.id === editAccessoryId);
+                                if (!accessory) return undefined;
+                                const collectionIds = data.accessoryCollections
+                                  .filter(ac => ac.accessory_id === accessory.id)
+                                  .map(ac => ac.collection_id);
+                                const tagIds = data.accessoryTags
+                                  .filter(at => at.accessory_id === accessory.id)
+                                  .map(at => at.tag_id);
+                                return { ...accessory, collectionIds, tagIds };
+                              })() : undefined}
+                            />
+                          </div>
+                        </Card>
+                      </div>
+                    </div>
+
+                    {/* Right column: Management tools */}
+                    <div className="space-y-6">
+                      {/* Special filters */}
+                      <Card className="p-4">
+                        <SectionTitle>Special Views</SectionTitle>
+                        <div className="pt-3 space-y-3">
+                          <Button 
+                            onClick={() => {
+                              toggleDuplicateFilter();
+                              // Switch to browse tab to show the filtered results
+                              setTab("browse");
+                            }}
+                            className={`w-full justify-start ${showDuplicatesOnly ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                          >
+                            🔍 {showDuplicatesOnly ? "Hide" : "Show"} Duplicates ({duplicateItemIds.houseIds.size + duplicateItemIds.accessoryIds.size})
+                          </Button>
+                          <Button 
+                            onClick={() => {
+                              toggleUnlinkedHousesFilter();
+                              // Switch to browse tab to show the filtered results
+                              setTab("browse");
+                            }}
+                            className={`w-full justify-start ${showUnlinkedHousesOnly ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                          >
+                            🏠 {showUnlinkedHousesOnly ? "Hide" : "Show"} Unlinked Houses ({data.houses.filter(h => data.houseAccessoryLinks.filter(l => l.house_id === h.id).length === 0).length})
+                          </Button>
+                          <Button 
+                            onClick={() => {
+                              toggleNoPhotosFilter();
+                              // Switch to browse tab to show the filtered results
+                              setTab("browse");
+                            }}
+                            className={`w-full justify-start ${showNoPhotosOnly ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                          >
+                            📷 {showNoPhotosOnly ? "Hide" : "Show"} No Photos ({[...data.houses, ...data.accessories].filter(item => !item.photo_url).length})
+                          </Button>
+                        </div>
+                      </Card>
+
+                      {/* Link accessories to houses */}
+                      <Card className="p-4">
+                        <SectionTitle>Link Accessory to House</SectionTitle>
+                        <div className="grid grid-cols-1 gap-3 pt-3">
+                          <Field label="House">
+                            <Select value={linkHouseId} onChange={(e) => setLinkHouseId(e.target.value)}>
+                              <option value="">Select…</option>
+                              {data.houses
+                                .slice()
+                                .sort((a, b) => a.name.localeCompare(b.name))
+                                .map((h) => (
+                                  <option key={h.id} value={h.id}>
+                                    {h.name}
+                                  </option>
+                                ))}
+                            </Select>
+                          </Field>
+                          <Field label="Accessory">
+                            <Select value={linkAccId} onChange={(e) => setLinkAccId(e.target.value)}>
+                              <option value="">Select…</option>
+                              {data.accessories
+                                .slice()
+                                .sort((a, b) => a.name.localeCompare(b.name))
+                                .map((a) => (
+                                  <option key={a.id} value={a.id}>
+                                    {a.name}
+                                  </option>
+                                ))}
+                            </Select>
+                          </Field>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => addLink(linkHouseId, linkAccId)}
+                              disabled={!canLink}
+                              className={`bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 ${
+                                !canLink ? "opacity-60 cursor-not-allowed" : ""
+                              }`}
+                            >
+                              Link
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setLinkAccId("");
+                                setLinkHouseId("");
+                              }}
+                            >
+                              Clear
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+
+                      {/* Collections and Tags */}
+                      <Card className="p-4 space-y-4">
+                        <SectionTitle>Collections</SectionTitle>
+                        <AddOneLine label="Add collection" onAdd={addCollection} />
+                        <div className="flex flex-wrap gap-2">
+                          {data.collections
+                            .slice()
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((c) => (
+                              <Pill key={c.id}>{c.name}</Pill>
+                            ))}
+                        </div>
+                      </Card>
+
+                      <Card className="p-4 space-y-4">
+                        <SectionTitle>Tags</SectionTitle>
+                        <AddOneLine label="Add tag" onAdd={addTag} />
+                        <div className="flex flex-wrap gap-2">
+                          {data.tags
+                            .slice()
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((t) => (
+                              <Pill key={t.id}>#{t.name}</Pill>
+                            ))}
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          Tip: Tags are synced to the cloud and can be used for ML-powered suggestions in
+                          the future.
+                        </p>
+                      </Card>
+
+                      {/* Data Tools */}
+                      <Card className="p-4">
+                        <SectionTitle>Data Tools</SectionTitle>
+                        <div className="pt-3 flex flex-wrap gap-2">
+                          <Button onClick={exportJSON}>Export JSON</Button>
+                          <Button onClick={loadData}>Refresh Data</Button>
+                        </div>
+                        <p className="text-xs text-gray-500 pt-2">
+                          Data is automatically synced to the cloud. Export for backup purposes.
+                        </p>
+                      </Card>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Data Review Section */}
+            {manageView === "dataReview" && (
+              <Card className="p-4">
+                <SectionTitle>Data Review</SectionTitle>
+                <div className="pt-4">
+                  <DataReviewTab />
+                </div>
+              </Card>
+            )}
+
+            {/* Import Section (Coming Soon) */}
+            {manageView === "import" && (
+              <Card className="p-4">
+                <SectionTitle>Import Houses</SectionTitle>
+                <div className="pt-4 text-center py-12">
+                  <div className="space-y-4">
+                    <div className="text-6xl">🚧</div>
+                    <h3 className="text-lg font-semibold text-gray-900">Coming Soon</h3>
+                    <p className="text-gray-600 max-w-md mx-auto">
+                      The bulk import feature will allow you to input a list of house names and automatically 
+                      retrieve details using the web scraper for review and addition to your collection.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
         ) : (
+          // This is the Browse tab content
           <div className="space-y-6">
             {/* Check if any special filter is active to show gallery view */}
             {(showDuplicatesOnly || showUnlinkedHousesOnly || showNoPhotosOnly) ? (
@@ -3137,259 +3491,22 @@ export default function App() {
                 )}
               </>
             ) : (
-              <>
-            {/* Top row: House form and linked accessories/accessory form */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-              <div className="lg:col-span-3">
-                <div ref={houseFormRef}>
-                  <Card className="p-4">
-                    <SectionTitle>Edit / Add House</SectionTitle>
-                  <div className="pt-3 space-y-3">
-                    <Field label="Load Existing House to Edit (optional)">
-                      <Select 
-                        value={editHouseId}
-                        onChange={(e) => setEditHouseId(e.target.value)}
-                      >
-                        <option value="">-- Create New House --</option>
-                        {filteredHouses
-                          .map((h) => (
-                            <option key={h.id} value={h.id}>
-                              {h.name}
-                            </option>
-                          ))}
-                      </Select>
-                    </Field>
-                    <HouseForm 
-                      data={data} 
-                      onSave={addHouse}
-                      onDelete={deleteHouse}
-                      onMoveToAccessory={moveHouseToAccessory}
-                      onLink={addLink}
-                      initial={editHouseId ? (() => {
-                        const house = data.houses.find(h => h.id === editHouseId);
-                        if (!house) return undefined;
-                        const collectionIds = data.houseCollections
-                          .filter(hc => hc.house_id === house.id)
-                          .map(hc => hc.collection_id);
-                        const tagIds = data.houseTags
-                          .filter(ht => ht.house_id === house.id)
-                          .map(ht => ht.tag_id);
-                        return { ...house, collectionIds, tagIds };
-                      })() : undefined}
-                    />
-                  </div>
-                </Card>
-                </div>
-              </div>
-
-              {/* Right column: Linked accessories and accessory form */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Linked accessories - shown when editing a house */}
-                {editHouseId && (() => {
-                  const linkedAccessories = data.houseAccessoryLinks
-                    .filter((ha: HouseAccessoryLink) => ha.house_id === editHouseId)
-                    .map((ha: HouseAccessoryLink) => data.accessories.find((a: Accessory) => a.id === ha.accessory_id))
-                    .filter((a: Accessory | undefined): a is Accessory => a !== undefined);
-                  
-                  if (linkedAccessories.length === 0) {
-                    return (
-                      <Card className="p-4">
-                        <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                          Linked Accessories
-                        </h3>
-                        <p className="text-sm text-gray-500">No accessories linked to this house yet.</p>
-                      </Card>
-                    );
-                  }
-                  
-                  return (
-                    <Card className="p-4">
-                      <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                        Linked Accessories ({linkedAccessories.length})
-                      </h3>
-                      <div className="space-y-3">
-                        {linkedAccessories.map((accessory) => (
-                          <div 
-                            key={accessory.id} 
-                            className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-indigo-300 transition"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                {accessory.photo_url && (
-                                  <img 
-                                    src={accessory.photo_url} 
-                                    alt={accessory.name}
-                                    className="w-10 h-10 object-cover rounded"
-                                  />
-                                )}
-                                <span className="font-medium text-gray-900">{accessory.name}</span>
-                              </div>
-                              <Button
-                                onClick={() => {
-                                  setEditAccessoryId(accessory.id);
-                                  // Scroll to the accessory form after a brief delay
-                                  setTimeout(() => {
-                                    accessoryFormRef.current?.scrollIntoView({ 
-                                      behavior: 'smooth', 
-                                      block: 'start' 
-                                    });
-                                  }, 100);
-                                }}
-                                className="text-xs px-2 py-1"
-                              >
-                                Edit
-                              </Button>
-                            </div>
-                            {accessory.description && (
-                              <div className="text-xs text-gray-600">
-                                <p>{accessory.description}</p>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </Card>
-                  );
-                })()}
-
-                {/* Accessory form - always visible */}
-                <div ref={accessoryFormRef}>
-                  <Card className="p-4">
-                    <SectionTitle>Edit / Add Accessory</SectionTitle>
-                    <div className="pt-3 space-y-3">
-                      <Field label="Load Existing Accessory to Edit (optional)">
-                        <Select 
-                          value={editAccessoryId}
-                          onChange={(e) => setEditAccessoryId(e.target.value)}
-                        >
-                          <option value="">-- Create New Accessory --</option>
-                          {filteredAccessories
-                            .map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {a.name}
-                              </option>
-                            ))}
-                        </Select>
-                      </Field>
-                      <AccessoryForm 
-                        data={data} 
-                        onSave={addAccessory}
-                        onDelete={deleteAccessory}
-                        onMoveToHouse={moveAccessoryToHouse}
-                        onLink={addLink}
-                        initial={editAccessoryId ? (() => {
-                          const accessory = data.accessories.find(a => a.id === editAccessoryId);
-                          if (!accessory) return undefined;
-                          const collectionIds = data.accessoryCollections
-                            .filter(ac => ac.accessory_id === accessory.id)
-                            .map(ac => ac.collection_id);
-                          const tagIds = data.accessoryTags
-                            .filter(at => at.accessory_id === accessory.id)
-                            .map(at => at.tag_id);
-                          return { ...accessory, collectionIds, tagIds };
-                        })() : undefined}
-                      />
-                    </div>
-                  </Card>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom row: Link, Collections, Tags, Data Tools */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="p-4">
-                <SectionTitle>Link Accessory to House</SectionTitle>
-                <div className="grid grid-cols-1 gap-3 pt-3">
-                  <Field label="House">
-                    <Select value={linkHouseId} onChange={(e) => setLinkHouseId(e.target.value)}>
-                      <option value="">Select…</option>
-                      {data.houses
-                        .slice()
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map((h) => (
-                          <option key={h.id} value={h.id}>
-                            {h.name}
-                          </option>
-                        ))}
-                    </Select>
-                  </Field>
-                  <Field label="Accessory">
-                    <Select value={linkAccId} onChange={(e) => setLinkAccId(e.target.value)}>
-                      <option value="">Select…</option>
-                      {data.accessories
-                        .slice()
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name}
-                          </option>
-                        ))}
-                    </Select>
-                  </Field>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => addLink(linkHouseId, linkAccId)}
-                      disabled={!canLink}
-                      className={`bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 ${
-                        !canLink ? "opacity-60 cursor-not-allowed" : ""
-                      }`}
-                    >
-                      Link
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setLinkAccId("");
-                        setLinkHouseId("");
-                      }}
-                    >
-                      Clear
-                    </Button>
+              // Normal browse content would go here
+              // For now, we'll show a message that filtering/browse functionality
+              // is accessed through the collapsible filters section above
+              <Card className="p-6 text-center">
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-900">Welcome to Department 56 Browser</h3>
+                  <p className="text-gray-600">
+                    Use the filters above to browse your houses and accessories, or switch to Manage to edit your collection.
+                  </p>
+                  <div className="text-sm text-gray-500">
+                    <p>• Click "Browse" buttons above to view Houses, Accessories, or All items</p>
+                    <p>• Use search and filters to find specific items</p>
+                    <p>• Sign in with Google to access management features</p>
                   </div>
                 </div>
               </Card>
-
-              <Card className="p-4 space-y-4">
-                <SectionTitle>Collections</SectionTitle>
-                <AddOneLine label="Add collection" onAdd={addCollection} />
-                <div className="flex flex-wrap gap-2">
-                  {data.collections
-                    .slice()
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((c) => (
-                      <Pill key={c.id}>{c.name}</Pill>
-                    ))}
-                </div>
-              </Card>
-
-              <Card className="p-4 space-y-4">
-                <SectionTitle>Tags</SectionTitle>
-                <AddOneLine label="Add tag" onAdd={addTag} />
-                <div className="flex flex-wrap gap-2">
-                  {data.tags
-                    .slice()
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((t) => (
-                      <Pill key={t.id}>#{t.name}</Pill>
-                    ))}
-                </div>
-                <p className="text-xs text-gray-500">
-                  Tip: Tags are synced to the cloud and can be used for ML-powered suggestions in
-                  the future.
-                </p>
-              </Card>
-
-              <Card className="p-4">
-                <SectionTitle>Data Tools</SectionTitle>
-                <div className="pt-3 flex flex-wrap gap-2">
-                  <Button onClick={exportJSON}>Export JSON</Button>
-                  <Button onClick={loadData}>Refresh Data</Button>
-                </div>
-                <p className="text-xs text-gray-500 pt-2">
-                  Data is automatically synced to the cloud. Export for backup purposes.
-                </p>
-              </Card>
-            </div>
-              </>
             )}
           </div>
         )}

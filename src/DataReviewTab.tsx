@@ -165,6 +165,162 @@ export function DataReviewTab() {
     }
   }
 
+  async function createNewItem(item: StagedHouse) {
+    console.log("🔄 Creating new item for:", item.name);
+    
+    // Determine if this is a house or accessory based on name/description
+    const isAccessory = determineIfAccessory(item);
+    console.log(`📦 Item type detected: ${isAccessory ? 'ACCESSORY' : 'HOUSE'}`);
+    
+    const userEmail = (await supabase.auth.getUser()).data.user?.email || "unknown";
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+    
+    if (isAccessory) {
+      await createNewAccessory(item, userId, userEmail);
+    } else {
+      await createNewHouse(item, userId, userEmail);
+    }
+  }
+
+  function determineIfAccessory(item: StagedHouse): boolean {
+    const name = item.name.toLowerCase();
+    const description = (item.description || "").toLowerCase();
+    
+    // Accessory keywords
+    const accessoryKeywords = [
+      'accessory', 'figure', 'figurine', 'tree', 'fence', 'sign', 
+      'light', 'lamp', 'car', 'truck', 'sleigh', 'sled', 'animal',
+      'person', 'people', 'snow', 'decoration', 'ornament', 'set of'
+    ];
+    
+    // House keywords
+    const houseKeywords = [
+      'house', 'building', 'church', 'shop', 'store', 'factory', 
+      'mill', 'barn', 'cottage', 'manor', 'castle', 'tower',
+      'station', 'depot', 'inn', 'hotel', 'school', 'hospital'
+    ];
+    
+    const text = `${name} ${description}`;
+    
+    const accessoryScore = accessoryKeywords.filter(keyword => text.includes(keyword)).length;
+    const houseScore = houseKeywords.filter(keyword => text.includes(keyword)).length;
+    
+    // If more accessory keywords, it's likely an accessory
+    return accessoryScore > houseScore;
+  }
+
+  async function createNewHouse(item: StagedHouse, userId: string, userEmail: string) {
+    console.log("🏠 Creating new house...");
+    
+    const newNotes = item.description ? 
+      `${item.description}\n\nSeries: ${item.discovered_series || 'Unknown'}\nRetired: ${item.retire_year || 'Unknown'}` : 
+      null;
+    
+    const houseData = {
+      user_id: userId,
+      name: item.name,
+      year: item.intro_year,
+      sku: item.item_number,
+      notes: newNotes,
+      photo_url: item.primary_image_url,
+    };
+    
+    const { data: newHouse, error: houseError } = await supabase
+      .from("houses")
+      .insert(houseData)
+      .select()
+      .single();
+    
+    if (houseError) {
+      throw new Error(`Failed to create house: ${houseError.message}`);
+    }
+    
+    console.log("✅ New house created successfully!");
+  }
+
+  async function createNewAccessory(item: StagedHouse, userId: string, userEmail: string) {
+    console.log("🎯 Creating new accessory...");
+    
+    // Create the accessory
+    const accessoryData = {
+      user_id: userId,
+      name: item.name,
+      notes: item.description,
+      photo_url: item.primary_image_url,
+    };
+    
+    const { data: newAccessory, error: accessoryError } = await supabase
+      .from("accessories")
+      .insert(accessoryData)
+      .select()
+      .single();
+    
+    if (accessoryError) {
+      throw new Error(`Failed to create accessory: ${accessoryError.message}`);
+    }
+    
+    console.log("✅ New accessory created successfully!");
+    
+    // Try to find compatible houses for linking
+    await linkAccessoryToHouses(newAccessory.id, item);
+  }
+
+  async function linkAccessoryToHouses(accessoryId: string, item: StagedHouse) {
+    console.log("🔗 Attempting to link accessory to compatible houses...");
+    
+    // Simple linking strategy based on series/collection
+    if (item.discovered_series || item.discovered_collection) {
+      try {
+        // Find houses with matching series/collection in their notes
+        const { data: houses, error } = await supabase
+          .from("houses")
+          .select("id, name, notes")
+          .execute();
+        
+        if (error) {
+          console.error("Error fetching houses for linking:", error);
+          return;
+        }
+        
+        const compatibleHouses = (houses || []).filter(house => {
+          const notes = (house.notes || "").toLowerCase();
+          const series = (item.discovered_series || "").toLowerCase();
+          const collection = (item.discovered_collection || "").toLowerCase();
+          
+          return (series && notes.includes(series)) || 
+                 (collection && notes.includes(collection));
+        });
+        
+        console.log(`Found ${compatibleHouses.length} potentially compatible houses`);
+        
+        // Create links for the most compatible houses (max 3)
+        for (const house of compatibleHouses.slice(0, 3)) {
+          try {
+            await supabase
+              .from("house_accessory_links")
+              .insert({
+                house_id: house.id,
+                accessory_id: accessoryId
+              });
+            
+            console.log(`✅ Linked to house: ${house.name}`);
+          } catch (linkError) {
+            console.warn(`Failed to link to ${house.name}:`, linkError);
+          }
+        }
+        
+      } catch (error) {
+        console.error("Error in house linking process:", error);
+      }
+    } else {
+      console.log("⚠️ No series/collection info available for smart linking");
+    }
+  }
+
   async function applyApproval(item: StagedHouse) {
     console.log("🔄 Starting approval process for:", item.name);
     console.log("📋 Item details:", { 
@@ -249,8 +405,9 @@ export function DataReviewTab() {
       }
       console.log("✅ House updated successfully!");
     } else {
-      // Create new house (if implementing new imports)
-      throw new Error("New house import not yet implemented");
+      // Create new item (house or accessory)
+      console.log("🆕 Step 3: Creating new item...");
+      await createNewItem(item);
     }
 
     // Step 4: Mark as approved
