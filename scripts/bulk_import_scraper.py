@@ -6,6 +6,7 @@ Processes multiple house names and returns structured results for the import wor
 
 import sys
 import json
+import time
 import asyncio
 from pathlib import Path
 
@@ -13,7 +14,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent / "scraper"))
 
 try:
-    from enhanced_sitemap_scraper import EnhancedSitemapScraper
+    from enhanced_sitemap_scraper import SitemapBasedScraper
 except ImportError as e:
     print(json.dumps({
         "error": f"Failed to import scraper: {e}",
@@ -21,7 +22,7 @@ except ImportError as e:
     }))
     sys.exit(1)
 
-async def bulk_search_houses(house_names: list) -> dict:
+def bulk_search_houses(house_names: list) -> dict:
     """
     Search for multiple house names and return structured results
     
@@ -31,11 +32,11 @@ async def bulk_search_houses(house_names: list) -> dict:
     Returns:
         Dict with search results
     """
-    scraper = EnhancedSitemapScraper()
+    scraper = SitemapBasedScraper()
     
     # Load indices for all sites
     print("Loading product indices...")
-    await scraper.load_all_indices()
+    scraper.build_indices()
     
     results = []
     
@@ -92,10 +93,10 @@ async def bulk_search_houses(house_names: list) -> dict:
         "results": results,
         "total_searched": len(house_names),
         "found_count": len([r for r in results if r["status"] == "found"]),
-        "timestamp": asyncio.get_event_loop().time()
+        "timestamp": time.time()
     }
 
-async def main():
+def main():
     """
     Main entry point - reads house names from stdin (JSON) and outputs results
     """
@@ -128,7 +129,7 @@ async def main():
             return
         
         # Process the search
-        results = await bulk_search_houses(house_names)
+        results = bulk_search_houses(house_names)
         
         # Output results as JSON
         print(json.dumps(results, indent=2))
@@ -140,4 +141,4 @@ async def main():
         }))
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
