@@ -14,7 +14,13 @@ jobs:
       - name: Ping Application
         run: |
           echo "Pinging dept56.rndpig.com to keep Supabase active..."
-          curl -s -o /dev/null -w "Status: %{http_code}\n" https://dept56.rndpig.com/
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://dept56.rndpig.com/)
+          echo "Application Status: $HTTP_CODE"
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+            echo "✅ Application ping successful"
+          else
+            echo "⚠️ Application returned status $HTTP_CODE (but continuing...)"
+          fi
           
       - name: Ping Supabase API
         env:
@@ -22,11 +28,22 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           echo "Making Supabase query to keep database active..."
-          curl -s -o /dev/null -w "Status: %{http_code}\n" \
+          echo "Using URL: $SUPABASE_URL"
+          
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "apikey: $SUPABASE_KEY" \
             -H "Authorization: Bearer $SUPABASE_KEY" \
-            "$SUPABASE_URL/rest/v1/houses?limit=1"
+            "$SUPABASE_URL/rest/v1/houses?limit=1")
+          
+          echo "Supabase API Status: $HTTP_CODE"
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+            echo "✅ Supabase ping successful"
+          else
+            echo "❌ Supabase returned status $HTTP_CODE"
+            exit 1
+          fi
           
       - name: Report Success
         run: |
-          echo "✅ Keep-alive completed at $(date)"
+          echo "✅ Keep-alive completed successfully at $(date)"
