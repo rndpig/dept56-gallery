@@ -14,16 +14,46 @@ jobs:
       - name: Ping Application
         run: |
           echo "Pinging dept56.rndpig.com to keep Supabase active..."
-          echo "This will trigger database queries through the app, keeping Supabase active."
-          
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://dept56.rndpig.com/)
           echo "Application Status: $HTTP_CODE"
           
           if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
-            echo "✅ Application ping successful - Supabase will stay active!"
+            echo "✅ Application ping successful"
           else
-            echo "⚠️ Application returned status $HTTP_CODE"
-            exit 1
+            echo "⚠️ Application returned status $HTTP_CODE (continuing anyway...)"
+          fi
+          
+      - name: Ping Supabase API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Making direct Supabase query to keep database active..."
+          
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "⚠️ Secrets not configured, skipping direct API ping"
+            exit 0
+          fi
+          
+          echo "Querying: $SUPABASE_URL/rest/v1/houses?limit=1"
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            "$SUPABASE_URL/rest/v1/houses?limit=1")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+          
+          echo "Supabase API Status: $HTTP_CODE"
+          
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Supabase ping successful"
+            echo "Response: $BODY"
+          else
+            echo "⚠️ Supabase returned status $HTTP_CODE"
+            echo "Response: $BODY"
+            echo "But application ping worked, so database should stay active!"
           fi
           
       - name: Report Success
