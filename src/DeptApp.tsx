@@ -4,6 +4,7 @@ import * as db from "./lib/database";
 import type { Database, House, Accessory, Collection, Tag, HouseAccessoryLink } from "./types/database";
 import type { User } from "@supabase/supabase-js";
 import { DataReviewTab } from "./DataReviewTab";
+import { EnhancedDataReview } from "./EnhancedDataReview";
 import Fuse from 'fuse.js';
 
 // Type for search index items
@@ -3539,7 +3540,12 @@ export default function App() {
             {/* Data Review Section */}
             {manageView === "dataReview" && (
               <Card className="p-4">
-                <SectionTitle>Data Review</SectionTitle>
+                <SectionTitle>Enhanced Data Review</SectionTitle>
+                <div className="pt-4">
+                  <EnhancedDataReview data={data} />
+                </div>
+                <hr className="my-8" />
+                <SectionTitle>Legacy Data Review</SectionTitle>
                 <div className="pt-4">
                   <DataReviewTab />
                 </div>
