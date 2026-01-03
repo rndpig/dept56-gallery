@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dept 56 - Keep Alive Tester</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #0070f3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background: #0051cc;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Supabase Keep-Alive Tester</h1>
+        <p>Click the button below to manually ping your Supabase database and keep it active.</p>
+        <button id="testBtn" onclick="testKeepAlive()">Test Keep-Alive</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function testKeepAlive() {
+            const btn = document.getElementById('testBtn');
+            const result = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/keep-alive');
+                const data = await response.json();
+                
+                result.className = data.success ? 'success' : 'error';
+                result.innerHTML = `
+                    <h3>${data.success ? '✅ Success!' : '⚠️ Warning'}</h3>
+                    <p><strong>Message:</strong> ${data.message}</p>
+                    <p><strong>Timestamp:</strong> ${data.timestamp}</p>
+                    ${data.nextRun ? `<p><strong>Next Run:</strong> ${data.nextRun}</p>` : ''}
+                    <details>
+                        <summary>Full Response</summary>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </details>
+                `;
+                result.style.display = 'block';
+            } catch (error) {
+                result.className = 'error';
+                result.innerHTML = `
+                    <h3>❌ Error</h3>
+                    <p>${error.message}</p>
+                `;
+                result.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Test Keep-Alive';
+            }
+        }
+    </script>
+</body>
+</html>
