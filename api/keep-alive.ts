@@ -5,14 +5,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const authHeader = req.headers.authorization;
   const cronSecret = process.env.CRON_SECRET;
   
-  // Allow Vercel Cron jobs (they set a special header) or requests with the secret
-  const isVercelCron = req.headers['user-agent']?.includes('vercel-cron');
-  const isAuthorized = cronSecret && authHeader === `Bearer ${cronSecret}`;
+  // Check if this is from Vercel Cron (has the secret in Authorization header)
+  // Or if CRON_SECRET is set, require it; otherwise allow all requests for testing
+  const isAuthorized = !cronSecret || (authHeader === `Bearer ${cronSecret}`);
   
-  if (!isVercelCron && !isAuthorized) {
+  if (!isAuthorized) {
     return res.status(401).json({ 
       error: 'Unauthorized',
-      message: 'This endpoint is only accessible via Vercel Cron or with valid authorization'
+      message: 'Invalid or missing authorization token'
     });
   }
 
