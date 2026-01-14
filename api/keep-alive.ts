@@ -1,22 +1,9 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Allow all GET requests for monitoring (UptimeRobot, manual testing, etc.)
-  // This endpoint is safe to be public - it only reads one record from the database
-  const authHeader = req.headers.authorization;
-  const cronSecret = process.env.CRON_SECRET;
+  // This endpoint is completely public for monitoring services
+  // It only reads one record from the database, so it's safe
   
-  // For non-GET requests, require authentication if CRON_SECRET is set
-  if (req.method !== 'GET' && cronSecret) {
-    const isAuthorized = authHeader === `Bearer ${cronSecret}`;
-    if (!isAuthorized) {
-      return res.status(401).json({ 
-        error: 'Unauthorized',
-        message: 'Invalid or missing authorization token'
-      });
-    }
-  }
-
   try {
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
