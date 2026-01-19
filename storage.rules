@@ -1,0 +1,37 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Images folder structure: images/houses/{houseId}-{filename} or images/accessories/{accessoryId}-{filename}
+    match /images/{type}/{imageId} {
+      // Allow public read access (for browsing gallery)
+      allow read: if true;
+      
+      // Allow authenticated users to write/upload images
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024  // Max 10MB
+                   && request.resource.contentType.matches('image/.*');  // Images only
+      
+      // Allow authenticated users to delete images they uploaded
+      allow delete: if request.auth != null;
+    }
+    
+    // New uploads folder (for user uploads)
+    match /uploads/{imageId} {
+      // Allow public read access
+      allow read: if true;
+      
+      // Allow authenticated users to write/upload images
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024  // Max 10MB
+                   && request.resource.contentType.matches('image/.*');  // Images only
+      
+      // Allow authenticated users to delete images they uploaded
+      allow delete: if request.auth != null;
+    }
+    
+    // Fallback: deny all access to other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

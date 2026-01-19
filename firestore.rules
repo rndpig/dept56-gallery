@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is in whitelist
+    function isWhitelisted() {
+      return request.auth != null && 
+        request.auth.token.email in [
+          'rndpig@gmail.com',
+          'annadilger@gmail.com',
+          'bday1951@gmail.com',
+          'drdcreek@gmail.com',
+          'ericlday@gmail.com',
+          'amyannday@gmail.com'
+        ];
+    }
+    
+    // Houses: Public read, write for whitelisted admins only
+    match /houses/{houseId} {
+      allow read: if true;
+      allow write: if isWhitelisted();
+    }
+    
+    // Accessories: Public read, write for whitelisted admins only
+    match /accessories/{accessoryId} {
+      allow read: if true;
+      allow write: if isWhitelisted();
+    }
+    
+    // Collections: Public read, write for whitelisted admins only
+    match /collections/{collectionId} {
+      allow read: if true;
+      allow write: if isWhitelisted();
+    }
+    
+    // Tags: Public read, write for whitelisted admins only
+    match /tags/{tagId} {
+      allow read: if true;
+      allow write: if isWhitelisted();
+    }
+    
+    // Links: Public read, write for whitelisted admins only
+    match /houseAccessoryLinks/{linkId} {
+      allow read: if true;
+      allow write: if isWhitelisted();
+    }
+    
+    match /houseCollections/{linkId} {
+      allow read: if true;
+      allow write: if isWhitelisted();
+    }
+    
+    match /accessoryCollections/{linkId} {
+      allow read: if true;
+      allow write: if isWhitelisted();
+    }
+    
+    match /houseTags/{linkId} {
+      allow read: if true;
+      allow write: if isWhitelisted();
+    }
+    
+    match /accessoryTags/{linkId} {
+      allow read: if true;
+      allow write: if isWhitelisted();
+    }
+  }
+}
