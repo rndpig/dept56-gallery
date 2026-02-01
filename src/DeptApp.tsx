@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "./lib/supabase";
-import * as db from "./lib/database";
+import * as db from "./lib/firebase-database";
 import type { Database, House, Accessory, Collection, Tag, HouseAccessoryLink } from "./types/database";
-import type { User } from "@supabase/supabase-js";
-import { DataReviewTab } from "./DataReviewTab";
-import { EnhancedDataReview } from "./EnhancedDataReview";
+import type { User as FirebaseUser } from "firebase/auth";
+import { signInWithGoogle, signOut, onAuthStateChange, isAllowedUser } from "./lib/firebase-auth";
+// import { DataReviewTab } from "./DataReviewTab"; // TODO: Port to Firebase
+// import { EnhancedDataReview } from "./EnhancedDataReview"; // TODO: Port to Firebase
 import Fuse from 'fuse.js';
 
 // Type for search index items
@@ -24,11 +24,11 @@ type SearchIndexHouse = {
 };
 
 /**
- * Department 56 Browser — React app (Supabase Edition)
+ * Department 56 Browser — React app (Firebase Edition)
  * --------------------------------------------------------------
  * FEATURES:
- * - Cloud database with Supabase
- * - Image storage in Supabase Storage
+ * - Cloud database with Firebase Firestore
+ * - Image storage in Firebase Storage
  * - Purchased date / purchased year metadata
  * - Collections (many-to-many links)
  * - Tags (manual + ML placeholder) with confidence + reviewed flag
@@ -38,15 +38,7 @@ type SearchIndexHouse = {
  * - Google OAuth authentication with email whitelist
  */
 
-// Whitelist of allowed admin emails
-const ALLOWED_ADMIN_EMAILS = [
-  "rndpig@gmail.com",
-  "annadilger@gmail.com",
-  "bday1951@gmail.com",
-  "drdcreek@gmail.com",
-  "ericlday@gmail.com",
-  "amyannday@gmail.com",
-];
+
 
 // ------------------------ Utils ------------------------
 async function fileToDataURL(file: File): Promise<string> {
@@ -1475,7 +1467,7 @@ export default function App() {
   const [data, setData] = useState<Database | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
   const [tab, setTab] = useState<"browse" | "manage">("browse");
@@ -1753,18 +1745,16 @@ export default function App() {
     return rows.sort((a, b) => a.name.localeCompare(b.name));
   }, [data, q, houseFilter, accessoryFilter, collectionFilter, yearFrom, yearTo, showDuplicatesOnly, showNoPhotosOnly, duplicateItemIds]);
 
-  // Load data from Supabase
+  // Load data from Firebase
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log("Starting to fetch data...");
-      console.log("Supabase URL:", import.meta.env.VITE_SUPABASE_URL);
-      console.log("Has Supabase Key:", !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+      console.log("Starting to fetch data from Firebase...");
       
       // Create a timeout promise
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Data fetch timed out after 30 seconds. This may indicate a network issue or the Supabase connection is blocked on mobile.")), 30000);
+        setTimeout(() => reject(new Error("Data fetch timed out after 30 seconds. This may indicate a network issue or the Firebase connection is blocked.")), 30000);
       });
       
       // Race between fetch and timeout
@@ -1796,8 +1786,7 @@ export default function App() {
 
   // Check if user is an allowed admin
   const isAdmin = useMemo(() => {
-    if (!user?.email) return false;
-    return ALLOWED_ADMIN_EMAILS.includes(user.email);
+    return isAllowedUser(user);
   }, [user]);
 
   // Check auth state on mount
@@ -1805,35 +1794,26 @@ export default function App() {
     console.log("Checking auth state...");
     
     // Set a timeout to prevent infinite loading
+    console.log("Setting up Firebase auth listener...");
+    
+    // Set a timeout to mark auth as checked after 3 seconds max
     const timeout = setTimeout(() => {
       if (!authChecked) {
-        console.warn("Auth check timed out after 10 seconds");
+        console.warn("Auth check timed out after 3 seconds");
         setAuthChecked(true);
       }
-    }, 10000);
+    }, 3000);
 
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        console.log("Auth session:", session ? "exists" : "none");
-        setUser(session?.user ?? null);
-        setAuthChecked(true);
-        clearTimeout(timeout);
-      })
-      .catch((err) => {
-        console.error("Error checking auth:", err);
-        setAuthChecked(true); // Still mark as checked even on error
-        clearTimeout(timeout);
-      });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log("Auth state changed:", _event);
-      setUser(session?.user ?? null);
+    // Subscribe to Firebase auth state changes
+    const unsubscribe = onAuthStateChange((firebaseUser) => {
+      console.log("Auth state:", firebaseUser ? firebaseUser.email : "none");
+      setUser(firebaseUser);
+      setAuthChecked(true);
+      clearTimeout(timeout);
     });
 
     return () => {
-      subscription.unsubscribe();
+      unsubscribe();
       clearTimeout(timeout);
     };
   }, []);
@@ -1909,8 +1889,8 @@ export default function App() {
               <div><strong>Browser:</strong> {navigator.userAgent}</div>
               <div><strong>Connection:</strong> {(navigator as any).connection?.effectiveType || 'Unknown'}</div>
               <div><strong>Online:</strong> {navigator.onLine ? 'Yes' : 'No'}</div>
-              <div><strong>Supabase URL:</strong> {import.meta.env.VITE_SUPABASE_URL || 'MISSING'}</div>
-              <div><strong>Has API Key:</strong> {import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Yes' : 'NO - THIS IS THE PROBLEM'}</div>
+              <div><strong>Firebase Project:</strong> {import.meta.env.VITE_FIREBASE_PROJECT_ID || 'MISSING'}</div>
+              <div><strong>Has API Key:</strong> {import.meta.env.VITE_FIREBASE_API_KEY ? 'Yes' : 'NO - THIS IS THE PROBLEM'}</div>
             </div>
             
             <Button onClick={loadData} className="bg-red-600 text-white hover:bg-red-700">
@@ -1950,35 +1930,9 @@ export default function App() {
         // Update existing house
         await db.updateHouse(existingId, h);
         
-        // Update collections - delete all and re-add
-        const currentCollections = data.houseCollections.filter(hc => hc.house_id === existingId);
-        for (const link of currentCollections) {
-          await supabase.from('house_collections').delete().eq('id', link.id);
-        }
-        if (collectionIds.length > 0) {
-          await supabase.from('house_collections').insert(
-            collectionIds.map(collection_id => ({
-              house_id: existingId,
-              collection_id
-            }))
-          );
-        }
-        
-        // Update tags - delete all and re-add
-        const currentTags = data.houseTags.filter(ht => ht.house_id === existingId);
-        for (const link of currentTags) {
-          await supabase.from('house_tags').delete().eq('id', link.id);
-        }
-        if (tagIds.length > 0) {
-          await supabase.from('house_tags').insert(
-            tagIds.map(tag_id => ({
-              house_id: existingId,
-              tag_id,
-              source: 'manual' as const,
-              reviewed: true
-            }))
-          );
-        }
+        // TODO: Relationship updates (collections/tags) not yet implemented for updates
+        // Collections and tags can be set when creating, but editing relationships
+        // after creation requires additional Firebase functions
         
         houseId = existingId;
       } else {
@@ -2014,35 +1968,9 @@ export default function App() {
         // Update existing accessory
         await db.updateAccessory(existingId, a);
         
-        // Update collections - delete all and re-add
-        const currentCollections = data.accessoryCollections.filter(ac => ac.accessory_id === existingId);
-        for (const link of currentCollections) {
-          await supabase.from('accessory_collections').delete().eq('id', link.id);
-        }
-        if (collectionIds.length > 0) {
-          await supabase.from('accessory_collections').insert(
-            collectionIds.map(collection_id => ({
-              accessory_id: existingId,
-              collection_id
-            }))
-          );
-        }
-        
-        // Update tags - delete all and re-add
-        const currentTags = data.accessoryTags.filter(at => at.accessory_id === existingId);
-        for (const link of currentTags) {
-          await supabase.from('accessory_tags').delete().eq('id', link.id);
-        }
-        if (tagIds.length > 0) {
-          await supabase.from('accessory_tags').insert(
-            tagIds.map(tag_id => ({
-              accessory_id: existingId,
-              tag_id,
-              source: 'manual' as const,
-              reviewed: true
-            }))
-          );
-        }
+        // TODO: Relationship updates (collections/tags) not yet implemented for updates
+        // Collections and tags can be set when creating, but editing relationships
+        // after creation requires additional Firebase functions
         
         accessoryId = existingId;
       } else {
@@ -2266,7 +2194,7 @@ export default function App() {
     download(`dept56-export-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2));
   }
   async function importJSON(file?: File) {
-    alert("Import from JSON is not yet implemented for Supabase version. Please add items manually or contact support.");
+    alert("Import from JSON is not yet implemented for Firebase version. Please add items manually or contact support.");
   }
 
   // House import functionality using web scraper
@@ -2659,25 +2587,15 @@ export default function App() {
                   // User is authenticated but not admin, show message
                   alert("Admin access required. Only whitelisted accounts can manage the collection.");
                 } else {
-                  // User not authenticated, trigger Google sign-in
+                  // User not authenticated, trigger Firebase Google sign-in
                   try {
-                    const { error } = await supabase.auth.signInWithOAuth({
-                      provider: 'google',
-                      options: {
-                        redirectTo: window.location.origin,
-                      }
-                    });
-                    if (error) {
-                      console.error('OAuth error:', error);
-                      if (error.message.includes('not enabled') || error.message.includes('Unsupported provider')) {
-                        alert('Google sign-in is not yet configured. Please follow the setup guide in GOOGLE_AUTH_SETUP.md to enable Google OAuth in your Supabase project.');
-                      } else {
-                        alert(`Sign in error: ${error.message}`);
-                      }
-                    }
-                  } catch (err) {
+                    await signInWithGoogle();
+                    // If successful, user state will be updated by onAuthStateChange
+                    setTab("manage");
+                    setManageView("edit");
+                  } catch (err: any) {
                     console.error('Sign in error:', err);
-                    alert('Unable to sign in. Please check the setup guide in GOOGLE_AUTH_SETUP.md');
+                    alert(err.message || 'Unable to sign in. Please try again.');
                   }
                 }
               }} 
@@ -3156,23 +3074,11 @@ export default function App() {
                 <Button
                   onClick={async () => {
                     try {
-                      const { error } = await supabase.auth.signInWithOAuth({
-                        provider: 'google',
-                        options: {
-                          redirectTo: window.location.origin,
-                        }
-                      });
-                      if (error) {
-                        console.error('OAuth error:', error);
-                        if (error.message.includes('not enabled') || error.message.includes('Unsupported provider')) {
-                          alert('Google sign-in is not yet configured. Please follow the setup guide in GOOGLE_AUTH_SETUP.md to enable Google OAuth in your Supabase project.');
-                        } else {
-                          alert(`Sign in error: ${error.message}`);
-                        }
-                      }
-                    } catch (err) {
+                      await signInWithGoogle();
+                      // If successful, user state will be updated by onAuthStateChange
+                    } catch (err: any) {
                       console.error('Sign in error:', err);
-                      alert('Unable to sign in. Please check the setup guide in GOOGLE_AUTH_SETUP.md');
+                      alert(err.message || 'Unable to sign in. Please try again.');
                     }
                   }}
                   className="bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
@@ -3201,7 +3107,7 @@ export default function App() {
                 </div>
                 <Button
                   onClick={async () => {
-                    await supabase.auth.signOut();
+                    await signOut();
                     setTab("browse"); // Return to browse on logout
                   }}
                   className="bg-gray-200 text-gray-700 border-gray-300 hover:bg-gray-300"
@@ -3540,14 +3446,10 @@ export default function App() {
             {/* Data Review Section */}
             {manageView === "dataReview" && (
               <Card className="p-4">
-                <SectionTitle>Enhanced Data Review</SectionTitle>
-                <div className="pt-4">
-                  <EnhancedDataReview data={data} />
-                </div>
-                <hr className="my-8" />
-                <SectionTitle>Legacy Data Review</SectionTitle>
-                <div className="pt-4">
-                  <DataReviewTab />
+                <SectionTitle>Data Review (Not Available)</SectionTitle>
+                <div className="pt-4 text-gray-600">
+                  <p>Data Review features have not yet been ported to Firebase.</p>
+                  <p className="mt-2">These features were used for reviewing and approving scraped data from external sources.</p>
                 </div>
               </Card>
             )}

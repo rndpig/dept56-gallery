@@ -29,6 +29,15 @@ dist-ssr
 .env.production
 .env.*
 
+# Firebase
+firebase-service-account.json
+.firebase/
+.firebaserc
+
+# Migration data (temporary)
+scripts/migration-data/
+scripts/temp-images/
+
 # Python
 __pycache__/
 *.py[cod]
