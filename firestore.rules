@@ -4,8 +4,9 @@ service cloud.firestore {
     
     // Helper function to check if user is in whitelist
     function isWhitelisted() {
-      return request.auth != null && 
-        request.auth.token.email in [
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
           'rndpig@gmail.com',
           'annadilger@gmail.com',
           'bday1951@gmail.com',
