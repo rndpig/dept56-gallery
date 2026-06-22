@@ -1,0 +1,51 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Mirror the Firestore whitelist: only these verified admin emails may write/delete.
+    function isWhitelisted() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'rndpig@gmail.com',
+          'annadilger@gmail.com',
+          'bday1951@gmail.com',
+          'drdcreek@gmail.com',
+          'ericlday@gmail.com',
+          'amyannday@gmail.com'
+        ];
+    }
+
+    // Images folder structure: images/houses/{houseId}-{filename} or images/accessories/{accessoryId}-{filename}
+    match /images/{type}/{imageId} {
+      // Public read access (for browsing gallery)
+      allow read: if true;
+
+      // Whitelisted admins may upload images
+      allow write: if isWhitelisted()
+                   && request.resource.size < 10 * 1024 * 1024  // Max 10MB
+                   && request.resource.contentType.matches('image/.*');  // Images only
+
+      // Whitelisted admins may delete images
+      allow delete: if isWhitelisted();
+    }
+
+    // New uploads folder (for user uploads)
+    match /uploads/{imageId} {
+      // Public read access
+      allow read: if true;
+
+      // Whitelisted admins may upload images
+      allow write: if isWhitelisted()
+                   && request.resource.size < 10 * 1024 * 1024  // Max 10MB
+                   && request.resource.contentType.matches('image/.*');  // Images only
+
+      // Whitelisted admins may delete images
+      allow delete: if isWhitelisted();
+    }
+
+    // Fallback: deny all access to other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

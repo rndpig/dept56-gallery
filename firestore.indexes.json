@@ -1,0 +1,133 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "houses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "houses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "accessories",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "accessories",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "collections",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tags",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "houseAccessoryLinks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "houseId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "houseAccessoryLinks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "accessoryId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "houseCollections",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "houseId", "order": "ASCENDING" },
+        { "fieldPath": "collectionId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "houseCollections",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "collectionId", "order": "ASCENDING" },
+        { "fieldPath": "houseId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "accessoryCollections",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "accessoryId", "order": "ASCENDING" },
+        { "fieldPath": "collectionId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "accessoryCollections",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "collectionId", "order": "ASCENDING" },
+        { "fieldPath": "accessoryId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "houseTags",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "houseId", "order": "ASCENDING" },
+        { "fieldPath": "reviewed", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "houseTags",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tagId", "order": "ASCENDING" },
+        { "fieldPath": "houseId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "accessoryTags",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "accessoryId", "order": "ASCENDING" },
+        { "fieldPath": "reviewed", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "accessoryTags",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tagId", "order": "ASCENDING" },
+        { "fieldPath": "accessoryId", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
