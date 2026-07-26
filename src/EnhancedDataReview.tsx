@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { supabase } from "./lib/supabase";
+import { updateHouse, updateAccessory } from "./lib/firebase-database";
 import { scanForEnrichments as clientSideScanner, EnrichmentScanResult } from "./enrichmentScanner";
 
 interface Database {
@@ -130,14 +130,20 @@ export function EnhancedDataReview({ data }: { data: Database | null }) {
           }
         }
 
-        // Update the database
-        const { error } = await supabase
-          .from('houses') // Assuming houses for now, should be dynamic
-          .update(updates)
-          .eq('id', opportunity.db_item.id);
+        // Update the correct Firestore collection — an opportunity's db_item
+        // can be either a house or an accessory, so look up which list it
+        // came from rather than assuming houses (legacy Supabase version
+        // always wrote to `houses`, which silently no-op'd for accessories).
+        const isAccessory = (data?.accessories || []).some(a => a.id === opportunity.db_item.id);
 
-        if (error) {
-          console.error(`Error updating ${opportunity.db_item.name}:`, error);
+        try {
+          if (isAccessory) {
+            await updateAccessory(opportunity.db_item.id, updates);
+          } else {
+            await updateHouse(opportunity.db_item.id, updates);
+          }
+        } catch (updateError) {
+          console.error(`Error updating ${opportunity.db_item.name}:`, updateError);
         }
       }
 

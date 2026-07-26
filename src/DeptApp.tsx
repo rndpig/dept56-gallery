@@ -3,8 +3,13 @@ import * as db from "./lib/firebase-database";
 import type { Database, House, Accessory, Collection, Tag, HouseAccessoryLink } from "./types/database";
 import type { User as FirebaseUser } from "firebase/auth";
 import { signInWithGoogle, signOut, onAuthStateChange, isAllowedUser } from "./lib/firebase-auth";
-// import { DataReviewTab } from "./DataReviewTab"; // TODO: Port to Firebase
-// import { EnhancedDataReview } from "./EnhancedDataReview"; // TODO: Port to Firebase
+// DataReviewTab intentionally stays commented out: it drives an approve/reject
+// queue (`staged_houses` / `approval_history`) that was never migrated off
+// Supabase — those tables (and the Python scrapers that populate them) have
+// no Firestore/Firebase Admin equivalent, so porting it needs a data-model +
+// scraper-pipeline decision, not a mechanical swap. See ENHANCED_DATA_REVIEW_STATUS.md.
+// import { DataReviewTab } from "./DataReviewTab"; // NOT ported — needs new Firestore collections + scraper migration
+import { EnhancedDataReview } from "./EnhancedDataReview";
 import Fuse from 'fuse.js';
 
 // Type for search index items
@@ -3445,13 +3450,17 @@ export default function App() {
 
             {/* Data Review Section */}
             {manageView === "dataReview" && (
-              <Card className="p-4">
-                <SectionTitle>Data Review (Not Available)</SectionTitle>
-                <div className="pt-4 text-gray-600">
-                  <p>Data Review features have not yet been ported to Firebase.</p>
-                  <p className="mt-2">These features were used for reviewing and approving scraped data from external sources.</p>
-                </div>
-              </Card>
+              <div className="space-y-6">
+                <EnhancedDataReview data={data} />
+
+                <Card className="p-4">
+                  <SectionTitle>Scraper Approval Queue (Not Available)</SectionTitle>
+                  <div className="pt-4 text-gray-600">
+                    <p>The legacy staged-item approval queue (staged houses pending review/undo history) has not been ported to Firebase.</p>
+                    <p className="mt-2">It depended on Supabase-only tables (<code>staged_houses</code>, <code>approval_history</code>) populated by the Python scrapers, which have no Firestore equivalent yet — porting it requires designing new Firestore collections and migrating the scraper scripts to the Firebase Admin SDK.</p>
+                  </div>
+                </Card>
+              </div>
             )}
 
             {/* Import Section (Coming Soon) */}

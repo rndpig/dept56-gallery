@@ -65,8 +65,8 @@ src/
 │   └── firestore.ts          # camelCase Firestore types + converters
 ├── components/               # Empty — all components are inline in DeptApp.tsx
 ├── api/                      # Empty — API handled via Vite plugin in dev
-├── DataReviewTab.tsx          # Not ported to Firebase (commented out)
-├── EnhancedDataReview.tsx     # Not ported to Firebase (commented out)
+├── DataReviewTab.tsx          # NOT ported — needs new Firestore collections + scraper migration (see below), stays commented out
+├── EnhancedDataReview.tsx     # Ported to Firebase — wired into Manage > Data Review
 └── enrichmentScanner.ts       # Data enrichment utilities
 
 scripts/
@@ -280,6 +280,11 @@ The `vite.config.ts` includes a custom plugin (`createImportApiHandler`) that ex
 ### Legacy Supabase References
 
 The README and some Python scripts still reference Supabase (the previous backend). The frontend has been fully migrated to Firebase. When updating documentation, prefer Firebase references. The Python admin scripts under `scripts/` still use Supabase credentials and would need updating to use Firebase Admin SDK if they are to be used again.
+
+### Data Review — port status (updated after Firebase-port pass)
+
+- **`EnhancedDataReview.tsx`** — **ported**. It only ever touched the existing `houses` / `accessories` collections (via `data` already fetched by `fetchAllData()`) and a static `/house_search_index.json` scan — no missing data model. The single Supabase write (`supabase.from('houses').update(...)`) is now `updateHouse()` / `updateAccessory()` from `lib/firebase-database.ts`, chosen per-item by checking which list (`data.houses` vs `data.accessories`) the opportunity's `db_item.id` came from — this also fixes a pre-existing bug where the Supabase version always wrote to `houses` even for accessory opportunities. Wired into Manage → Data Review.
+- **`DataReviewTab.tsx`** — **not ported, stays commented out**. It drives an approve/reject/undo queue backed by `staged_houses` and `approval_history` Supabase tables, populated by the Python scrapers under `scripts/scraper/`. Neither table has a Firestore equivalent (they're not in the 9-collection list above, nor in `firestore.rules`), and the scrapers still write to Supabase only. Porting this needs a real decision — new Firestore collections/rules, and migrating the scraper scripts to the Firebase Admin SDK — not a mechanical data-layer swap. The Manage → Data Review tab shows a note explaining this instead of a silent no-op.
 
 ### Data Quality Features
 
