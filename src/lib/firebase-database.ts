@@ -18,6 +18,10 @@ import type {
   Collection as CollectionType,
   Tag,
   HouseAccessoryLink,
+  HouseCollection,
+  AccessoryCollection,
+  HouseTag,
+  AccessoryTag,
   Database,
 } from '../types/database';
 
@@ -226,6 +230,56 @@ export async function deleteHouse(id: string): Promise<void> {
   await deleteDoc(doc(db, 'houses', id));
 }
 
+export async function updateHouseRelations(
+  houseId: string,
+  collectionIds: string[],
+  tagIds: string[],
+  currentCollectionLinks: HouseCollection[],
+  currentTagLinks: HouseTag[]
+): Promise<void> {
+  const batch = writeBatch(db);
+
+  const nextCollectionIds = new Set(collectionIds);
+  const currentCollectionIds = new Set(currentCollectionLinks.map((l) => l.collection_id));
+  for (const link of currentCollectionLinks) {
+    if (!nextCollectionIds.has(link.collection_id)) {
+      batch.delete(doc(db, 'houseCollections', link.id));
+    }
+  }
+  for (const collectionId of collectionIds) {
+    if (!currentCollectionIds.has(collectionId)) {
+      const linkRef = doc(collection(db, 'houseCollections'));
+      batch.set(linkRef, {
+        houseId,
+        collectionId,
+        createdAt: serverTimestamp(),
+      });
+    }
+  }
+
+  const nextTagIds = new Set(tagIds);
+  const currentTagIds = new Set(currentTagLinks.map((l) => l.tag_id));
+  for (const link of currentTagLinks) {
+    if (!nextTagIds.has(link.tag_id)) {
+      batch.delete(doc(db, 'houseTags', link.id));
+    }
+  }
+  for (const tagId of tagIds) {
+    if (!currentTagIds.has(tagId)) {
+      const linkRef = doc(collection(db, 'houseTags'));
+      batch.set(linkRef, {
+        houseId,
+        tagId,
+        source: 'manual',
+        reviewed: true,
+        createdAt: serverTimestamp(),
+      });
+    }
+  }
+
+  await batch.commit();
+}
+
 // ============================================
 // ACCESSORIES
 // ============================================
@@ -311,6 +365,56 @@ export async function updateAccessory(
 
 export async function deleteAccessory(id: string): Promise<void> {
   await deleteDoc(doc(db, 'accessories', id));
+}
+
+export async function updateAccessoryRelations(
+  accessoryId: string,
+  collectionIds: string[],
+  tagIds: string[],
+  currentCollectionLinks: AccessoryCollection[],
+  currentTagLinks: AccessoryTag[]
+): Promise<void> {
+  const batch = writeBatch(db);
+
+  const nextCollectionIds = new Set(collectionIds);
+  const currentCollectionIds = new Set(currentCollectionLinks.map((l) => l.collection_id));
+  for (const link of currentCollectionLinks) {
+    if (!nextCollectionIds.has(link.collection_id)) {
+      batch.delete(doc(db, 'accessoryCollections', link.id));
+    }
+  }
+  for (const collectionId of collectionIds) {
+    if (!currentCollectionIds.has(collectionId)) {
+      const linkRef = doc(collection(db, 'accessoryCollections'));
+      batch.set(linkRef, {
+        accessoryId,
+        collectionId,
+        createdAt: serverTimestamp(),
+      });
+    }
+  }
+
+  const nextTagIds = new Set(tagIds);
+  const currentTagIds = new Set(currentTagLinks.map((l) => l.tag_id));
+  for (const link of currentTagLinks) {
+    if (!nextTagIds.has(link.tag_id)) {
+      batch.delete(doc(db, 'accessoryTags', link.id));
+    }
+  }
+  for (const tagId of tagIds) {
+    if (!currentTagIds.has(tagId)) {
+      const linkRef = doc(collection(db, 'accessoryTags'));
+      batch.set(linkRef, {
+        accessoryId,
+        tagId,
+        source: 'manual',
+        reviewed: true,
+        createdAt: serverTimestamp(),
+      });
+    }
+  }
+
+  await batch.commit();
 }
 
 // ============================================
