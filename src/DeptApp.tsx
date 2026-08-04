@@ -1934,11 +1934,19 @@ export default function App() {
       if (existingId) {
         // Update existing house
         await db.updateHouse(existingId, h);
-        
-        // TODO: Relationship updates (collections/tags) not yet implemented for updates
-        // Collections and tags can be set when creating, but editing relationships
-        // after creation requires additional Firebase functions
-        
+
+        const currentCollectionLinks = data.houseCollections.filter(
+          (hc) => hc.house_id === existingId
+        );
+        const currentTagLinks = data.houseTags.filter((ht) => ht.house_id === existingId);
+        await db.updateHouseRelations(
+          existingId,
+          collectionIds,
+          tagIds,
+          currentCollectionLinks,
+          currentTagLinks
+        );
+
         houseId = existingId;
       } else {
         // Create new house
@@ -1972,11 +1980,19 @@ export default function App() {
       if (existingId) {
         // Update existing accessory
         await db.updateAccessory(existingId, a);
-        
-        // TODO: Relationship updates (collections/tags) not yet implemented for updates
-        // Collections and tags can be set when creating, but editing relationships
-        // after creation requires additional Firebase functions
-        
+
+        const currentCollectionLinks = data.accessoryCollections.filter(
+          (ac) => ac.accessory_id === existingId
+        );
+        const currentTagLinks = data.accessoryTags.filter((at) => at.accessory_id === existingId);
+        await db.updateAccessoryRelations(
+          existingId,
+          collectionIds,
+          tagIds,
+          currentCollectionLinks,
+          currentTagLinks
+        );
+
         accessoryId = existingId;
       } else {
         // Create new accessory
