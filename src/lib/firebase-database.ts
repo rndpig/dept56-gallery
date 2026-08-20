@@ -484,9 +484,6 @@ export async function unlinkHouseFromAccessory(linkId: string): Promise<void> {
 // IMAGE UPLOAD (Firebase Storage)
 // ============================================
 
-import { storage } from './firebase';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-
 export async function uploadImage(file: File): Promise<string> {
   const fileExt = file.name.split('.').pop();
   const fileName = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
