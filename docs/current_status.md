@@ -1,8 +1,18 @@
 # dept56-gallery — Current Status
 
-_Last updated: 2026-08-04 (portfolio-continuation automation pass)_
+_Last updated: 2026-08-20 (portfolio-continuation automation pass)_
 
 ## Recent work
+
+- **PR (this pass)** — Removed the duplicate Firebase Storage import block at
+  the bottom of `src/lib/firebase-database.ts` (a second `import { storage }`
+  / `import { ref, uploadBytes, getDownloadURL, deleteObject }` that shadowed
+  the top-of-file imports). It produced 10 `TS2300` duplicate-identifier
+  errors in `npm run type-check`. The referenced symbols are already imported
+  at the top of the file, so the upload functions still resolve.
+  - Verified: `npm run type-check` error count dropped 49 → 39 (exactly the
+    10 `TS2300` errors gone, no new errors, the pre-existing 7
+    `DataReviewTab.tsx` Supabase errors untouched); `npm run build` clean.
 
 - **PR #3 (merged 2026-08-04)** — Fixed a gap left by the Supabase→Firebase
   port (#2): editing an existing house or accessory silently dropped any
