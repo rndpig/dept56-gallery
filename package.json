@@ -24,7 +24,7 @@
     "autoprefixer": "^10.4.16",
     "firebase-admin": "^13.6.0",
     "postcss": "^8.4.33",
-    "tailwindcss": "^3.4.1",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.3.3",
     "vite": "^7.3.7"
   },
